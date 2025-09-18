@@ -1,6 +1,6 @@
 {
   "name": "wtf-mcp-manager",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "🎯 Smart MCP Manager for Claude - Enable/disable MCPs per project",
   "main": "lib/index.js",
   "type": "module",
