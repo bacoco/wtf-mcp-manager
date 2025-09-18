@@ -1,0 +1,77 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+lib-cov
+*.lcov
+coverage
+*.coverage
+.nyc_output
+
+# Dependencies
+node_modules/
+jspm_packages/
+
+# Build
+dist
+build
+*.tsbuildinfo
+
+# Cache
+.npm
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+.parcel-cache
+.cache
+.turbo
+
+# Environment
+.env
+.env.*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Test
+.claude/
+test-project/
+
+# Backups
+*.backup
+*.bak
+*.tmp
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

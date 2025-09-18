@@ -1,0 +1,64 @@
+{
+  "name": "wtf-mcp",
+  "version": "1.0.0",
+  "description": "🎯 Smart MCP manager for Claude - Enable/disable MCPs per project",
+  "main": "lib/index.js",
+  "type": "module",
+  "bin": {
+    "wtf-mcp": "./bin/wtf-mcp.js",
+    "wtf-mcp-chat": "./bin/wtf-mcp-chat.js",
+    "claude-mcp": "./bin/wtf-mcp.js"
+  },
+  "scripts": {
+    "test": "node test/test.js",
+    "lint": "eslint lib/",
+    "prepare": "npm run build",
+    "build": "echo 'Build complete'",
+    "postinstall": "node scripts/postinstall.js || true"
+  },
+  "keywords": [
+    "claude",
+    "mcp",
+    "modelcontextprotocol",
+    "ai",
+    "anthropic",
+    "automation",
+    "developer-tools",
+    "wtf"
+  ],
+  "author": "Loic",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/loic/wtf-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/loic/wtf-mcp/issues"
+  },
+  "homepage": "https://github.com/loic/wtf-mcp#readme",
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^11.0.0",
+    "inquirer": "^9.2.0",
+    "ora": "^7.0.0",
+    "glob": "^10.3.0",
+    "dotenv": "^16.3.1",
+    "yaml": "^2.3.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.50.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "preferGlobal": true,
+  "files": [
+    "bin/",
+    "lib/",
+    "registry/",
+    "templates/",
+    "scripts/",
+    "README.md",
+    "LICENSE"
+  ]
+}
