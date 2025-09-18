@@ -21,9 +21,7 @@
 ## 🚀 Get Started in 30 Seconds
 
 ```bash
-# 1. Install and chat
-npx wtf-mcp-manager chat
-
+# 1. Add to Claude and chat directly!
 # 2. Or start with auto-detection
 npx wtf-mcp-manager init
 ```
@@ -34,31 +32,34 @@ npx wtf-mcp-manager init
 
 ## 🤖 Two Ways to Control MCPs
 
-### 1. 💬 Interactive Chat (Recommended)
-```bash
-npx wtf-mcp-manager chat
-```
+### 1. 💬 Direct Claude Integration (Recommended)
 
-```
-🤖 Hi! I'm your MCP assistant. What can I help you with?
+Add to Claude config, then just talk naturally:
 
-> I need to work with databases
-🔍 Let me find the right MCPs for you...
+**You**: "I need to work with databases"
+
+**Claude**: Let me find the right MCPs for you...
 
 📦 Here are the MCPs that match your needs:
 1. Supabase - Database, storage and authentication
 2. PostgreSQL - PostgreSQL database
 3. SQLite - Local SQLite database
 
-What would you like to do?
-• Install one or more MCPs
-• Get more details
-• Continue chatting
+Would you like me to enable any of these for your project?
+
+### 2. 🛠️ Traditional CLI (When needed)
+
+**For project setup and direct management:**
+
+```bash
+npx wtf-mcp-manager init                # Initialize project
+npx wtf-mcp-manager list                # Show all MCPs
+npx wtf-mcp-manager enable supabase     # Enable specific MCP
+npx wtf-mcp-manager detect              # Auto-detect MCPs
+npx wtf-mcp-manager doctor              # Diagnose issues
 ```
 
-### 2. 🎮 Direct from Claude (Meta-MCP)
-
-**Enable WTF-MCP-Manager as an MCP in Claude:**
+**But the magic happens when you add it to Claude:**
 
 ```json
 {
@@ -71,13 +72,7 @@ What would you like to do?
 }
 ```
 
-**Then just talk to Claude naturally:**
-- *"What MCPs are available for my project?"*
-- *"Enable the Supabase MCP"*
-- *"I need tools for web development"*
-- *"Auto-detect what MCPs I need"*
-
-**Claude will control your MCPs dynamically during conversation!**
+**Then just talk to Claude naturally and it will manage everything!**
 
 ---
 
@@ -200,10 +195,7 @@ your-project/
 
 ### Command Line Interface
 ```bash
-# Chat interface (recommended)
-npx wtf-mcp-manager chat
-
-# Traditional commands
+# CLI commands
 npx wtf-mcp-manager init                # Initialize project
 npx wtf-mcp-manager list                # Show all MCPs
 npx wtf-mcp-manager enable supabase     # Enable specific MCP
@@ -262,13 +254,13 @@ Common issues:
 
 ### Use Directly
 ```bash
-npx wtf-mcp-manager chat  # Start chatting immediately
+# Add to Claude config and talk directly!
 ```
 
 ### Install Globally
 ```bash
 npm install -g wtf-mcp-manager
-wtf-mcp-manager chat
+# Then add to Claude config
 ```
 
 ### Development

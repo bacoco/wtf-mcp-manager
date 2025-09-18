@@ -277,22 +277,7 @@ program
     }
   });
 
-// Chat command
-program
-  .command('chat')
-  .alias('c')
-  .description('Start intelligent MCP chat assistant')
-  .action(async () => {
-    // Launch the chat interface
-    const { spawn } = await import('child_process');
-    const chatProcess = spawn('node', [join(__dirname, 'wtf-mcp-chat.js')], {
-      stdio: 'inherit'
-    });
-    
-    chatProcess.on('exit', (code) => {
-      process.exit(code);
-    });
-  });
+// Removed chat command - use Claude integration instead
 
 // Interactive mode (default)
 program

@@ -7,11 +7,10 @@
   "bin": {
     "wtf-mcp-manager": "./bin/wtf-mcp.js",
     "wtf-mcp": "./bin/wtf-mcp.js",
-    "wtf-mcp-chat": "./bin/wtf-mcp-chat.js",
     "claude-mcp": "./bin/wtf-mcp.js"
   },
   "scripts": {
-    "test": "node test/test.js",
+    "test": "node test/test-mcp-server.js",
     "lint": "eslint lib/",
     "prepare": "npm run build",
     "build": "echo 'Build complete'",
