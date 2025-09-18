@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * WTF-MCP - What The F*** MCP Manager
- * Smart MCP manager for Claude
+ * WTF-MCP-Manager - What The F*** MCP Manager
+ * Smart MCP Manager for Claude
  */
 
 import { Command } from 'commander';
@@ -28,7 +28,7 @@ function showBanner() {
   console.log(chalk.cyan(`
 ╔════════════════════════════════════════════════════╗
 ║                                                    ║
-║        🎯 WTF-MCP v${packageJson.version}                     ║
+║        🎯 WTF-MCP-Manager v${packageJson.version}               ║
 ║        What The F*** MCP Manager for Claude       ║
 ║                                                    ║
 ╚════════════════════════════════════════════════════╝
@@ -36,8 +36,8 @@ function showBanner() {
 }
 
 program
-  .name('wtf-mcp')
-  .description('Smart MCP manager for Claude - Enable/disable MCPs per project')
+  .name('wtf-mcp-manager')
+  .description('Smart MCP Manager for Claude - Enable/disable MCPs per project')
   .version(packageJson.version);
 
 // Init command
@@ -49,7 +49,7 @@ program
   .action(async (options) => {
     showBanner();
     
-    const spinner = ora('Initializing WTF-MCP configuration...').start();
+    const spinner = ora('Initializing WTF-MCP-Manager configuration...').start();
     
     try {
       await manager.init(options);
@@ -81,9 +81,9 @@ program
       }
       
       console.log(chalk.cyan('\n📝 What to do next:'));
-      console.log(chalk.gray('   1. Run `wtf-mcp list` to see all MCPs'));
-      console.log(chalk.gray('   2. Run `wtf-mcp enable <mcp>` to add more'));
-      console.log(chalk.gray('   3. Run `wtf-mcp serve` for Meta-MCP magic'));
+      console.log(chalk.gray('   1. Run `wtf-mcp-manager list` to see all MCPs'));
+      console.log(chalk.gray('   2. Run `wtf-mcp-manager enable <mcp>` to add more'));
+      console.log(chalk.gray('   3. Run `wtf-mcp-manager serve` for Meta-MCP magic'));
       
     } catch (error) {
       spinner.fail(chalk.red('WTF! Failed: ' + error.message));
@@ -235,26 +235,23 @@ program
   .alias('meta')
   .description('Start Meta-MCP server (The MCP to rule them all!)')
   .action(async () => {
-    showBanner();
-    console.log(chalk.cyan('Starting Meta-MCP server... This is where the magic happens!'));
-    
-    console.log(chalk.green(`\n✅ Meta-MCP server would be running!`));
-    console.log(chalk.gray(`\nAdd this to your Claude config:`));
-    console.log(chalk.yellow(`
-{
-  "mcpServers": {
-    "wtf-mcp": {
-      "command": "npx",
-      "args": ["wtf-mcp", "serve"]
-    }
-  }
-}
-    `));
-    
-    console.log(chalk.gray('\nIn Claude, you can now say:'));
-    console.log(chalk.gray('  • "WTF MCPs are available?"'));
-    console.log(chalk.gray('  • "Enable that Supabase MCP"'));
-    console.log(chalk.gray('  • "Auto-detect my project MCPs"'));
+    // Import and start the actual MCP server
+    const { spawn } = await import('child_process');
+    const serverPath = join(__dirname, '..', 'lib', 'mcp-server.js');
+
+    // Start the MCP server
+    const serverProcess = spawn('node', [serverPath], {
+      stdio: ['inherit', 'inherit', 'inherit']
+    });
+
+    serverProcess.on('exit', (code) => {
+      process.exit(code);
+    });
+
+    serverProcess.on('error', (error) => {
+      console.error(chalk.red('WTF! Failed to start MCP server:'), error.message);
+      process.exit(1);
+    });
   });
 
 // Doctor command
@@ -327,13 +324,13 @@ program
       
       switch (action) {
         case 'list':
-          await program.parseAsync(['node', 'wtf-mcp', 'list']);
+          await program.parseAsync(['node', 'wtf-mcp-manager', 'list']);
           break;
         case 'detect':
-          await program.parseAsync(['node', 'wtf-mcp', 'detect']);
+          await program.parseAsync(['node', 'wtf-mcp-manager', 'detect']);
           break;
         case 'doctor':
-          await program.parseAsync(['node', 'wtf-mcp', 'doctor']);
+          await program.parseAsync(['node', 'wtf-mcp-manager', 'doctor']);
           break;
         case 'enable':
           const { mcpToEnable } = await inquirer.prompt([{
@@ -342,7 +339,7 @@ program
             message: 'Which MCP to enable?'
           }]);
           if (mcpToEnable) {
-            await program.parseAsync(['node', 'wtf-mcp', 'enable', mcpToEnable]);
+            await program.parseAsync(['node', 'wtf-mcp-manager', 'enable', mcpToEnable]);
           }
           break;
         case 'disable':
@@ -352,7 +349,7 @@ program
             message: 'Which MCP to disable?'
           }]);
           if (mcpToDisable) {
-            await program.parseAsync(['node', 'wtf-mcp', 'disable', mcpToDisable]);
+            await program.parseAsync(['node', 'wtf-mcp-manager', 'disable', mcpToDisable]);
           }
           break;
       }
@@ -367,5 +364,5 @@ program.parse(process.argv);
 // If no command, show help
 if (!process.argv.slice(2).length) {
   program.outputHelp();
-  console.log(chalk.yellow('\n💡 Tip: Run `wtf-mcp init` to get started!\n'));
+  console.log(chalk.yellow('\n💡 Tip: Run `wtf-mcp-manager init` to get started!\n'));
 }

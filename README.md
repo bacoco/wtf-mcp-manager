@@ -1,6 +1,6 @@
-# 🎯 WTF-MCP: Chat with Claude to Control Your MCPs
+# 🎯 WTF-MCP-Manager: Chat with Claude to Control Your MCPs
 
-[![npm version](https://badge.fury.io/js/wtf-mcp.svg)](https://badge.fury.io/js/wtf-mcp)
+[![npm version](https://badge.fury.io/js/wtf-mcp-manager.svg)](https://badge.fury.io/js/wtf-mcp-manager)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > **Revolutionary MCP Management**: Just talk to Claude! "I need to work with databases" → MCPs auto-discovered and installed. No more configuration hell!
@@ -22,10 +22,10 @@
 
 ```bash
 # 1. Install and chat
-npx wtf-mcp chat
+npx wtf-mcp-manager chat
 
 # 2. Or start with auto-detection
-npx wtf-mcp init
+npx wtf-mcp-manager init
 ```
 
 **That's it.** The chatbot discovers your needs, suggests MCPs, and configures everything.
@@ -36,7 +36,7 @@ npx wtf-mcp init
 
 ### 1. 💬 Interactive Chat (Recommended)
 ```bash
-npx wtf-mcp chat
+npx wtf-mcp-manager chat
 ```
 
 ```
@@ -58,14 +58,14 @@ What would you like to do?
 
 ### 2. 🎮 Direct from Claude (Meta-MCP)
 
-**Enable WTF-MCP as an MCP in Claude:**
+**Enable WTF-MCP-Manager as an MCP in Claude:**
 
 ```json
 {
   "mcpServers": {
-    "wtf-mcp": {
+    "wtf-mcp-manager": {
       "command": "npx",
-      "args": ["wtf-mcp", "serve"]
+      "args": ["wtf-mcp-manager", "serve"]
     }
   }
 }
@@ -201,23 +201,23 @@ your-project/
 ### Command Line Interface
 ```bash
 # Chat interface (recommended)
-npx wtf-mcp chat
+npx wtf-mcp-manager chat
 
 # Traditional commands
-npx wtf-mcp init                # Initialize project
-npx wtf-mcp list                # Show all MCPs
-npx wtf-mcp enable supabase     # Enable specific MCP
-npx wtf-mcp detect              # Auto-detect MCPs
-npx wtf-mcp doctor              # Diagnose issues
+npx wtf-mcp-manager init                # Initialize project
+npx wtf-mcp-manager list                # Show all MCPs
+npx wtf-mcp-manager enable supabase     # Enable specific MCP
+npx wtf-mcp-manager detect              # Auto-detect MCPs
+npx wtf-mcp-manager doctor              # Diagnose issues
 
 # Interactive mode
-npx wtf-mcp
+npx wtf-mcp-manager
 ```
 
 ### Integration with Claude
 ```bash
 # Start Meta-MCP server
-npx wtf-mcp serve
+npx wtf-mcp-manager serve
 
 # Add to Claude Desktop config
 # Then control MCPs directly in Claude!
@@ -229,7 +229,7 @@ npx wtf-mcp serve
 
 ### "WTF is wrong?" Mode
 ```bash
-npx wtf-mcp doctor
+npx wtf-mcp-manager doctor
 ```
 
 Common issues:
@@ -240,16 +240,16 @@ Common issues:
 
 ---
 
-## 🌟 Why WTF-MCP Changes Everything
+## 🌟 Why WTF-MCP-Manager Changes Everything
 
-### Before WTF-MCP 😤
+### Before WTF-MCP-Manager 😤
 - Manual JSON configuration
 - Global MCP chaos
 - Google for MCP names
 - Environment variable hell
 - No project isolation
 
-### After WTF-MCP 😎
+### After WTF-MCP-Manager 😎
 - **"I need databases"** → Done
 - **Per-project** everything
 - **Auto-discovery** of MCPs
@@ -262,13 +262,13 @@ Common issues:
 
 ### Use Directly
 ```bash
-npx wtf-mcp chat  # Start chatting immediately
+npx wtf-mcp-manager chat  # Start chatting immediately
 ```
 
 ### Install Globally
 ```bash
-npm install -g wtf-mcp
-wtf-mcp chat
+npm install -g wtf-mcp-manager
+wtf-mcp-manager chat
 ```
 
 ### Development
@@ -285,7 +285,7 @@ npm test
 
 **Stop fighting with configuration files.** Start talking to your tools.
 
-**WTF-MCP** is the first step toward truly conversational development environments. Your IDE understands what you're building and configures itself.
+**WTF-MCP-Manager** is the first step toward truly conversational development environments. Your IDE understands what you're building and configures itself.
 
 ---
 

@@ -1,0 +1,56 @@
+{
+  "mcpServers": {
+    "wtf-mcp-manager": {
+      "command": "npx",
+      "args": ["wtf-mcp-manager", "serve"],
+      "env": {}
+    }
+  }
+}
+
+## Instructions for Claude Desktop
+
+1. Add the above configuration to your Claude Desktop config file:
+   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
+
+2. Restart Claude Desktop
+
+3. You can now talk to Claude and ask:
+   - "What MCPs do I have configured?"
+   - "I need to work with databases"
+   - "Enable the Supabase MCP"
+   - "Auto-detect what MCPs I need for this project"
+   - "Find MCPs for web scraping"
+   - "Disable the GitHub MCP"
+
+## Example Conversation
+
+**You**: What MCPs do I have configured?
+
+**Claude**: I'll analyze your MCP environment to see what you have configured globally and for this project.
+
+[Claude uses the analyze_environment tool]
+
+**Claude**: I found you have 8 MCPs configured globally and 0 in this project. There are no conflicts, but I recommend moving some MCPs to project-level for better isolation.
+
+**You**: I need to work with databases
+
+**Claude**: Let me search for database-related MCPs for you.
+
+[Claude uses the search_mcps tool with query "database"]
+
+**Claude**: I found several database MCPs:
+1. **Supabase** - Database, storage and authentication platform
+2. **PostgreSQL** - PostgreSQL database operations
+3. **SQLite** - SQLite local database management
+
+Would you like me to enable any of these for your project?
+
+**You**: Enable Supabase
+
+**Claude**: I'll enable the Supabase MCP for your project using WTF-MCP-Manager. You'll need to provide your Supabase URL and service key.
+
+[Claude uses the enable_mcp tool]
+
+**Claude**: Supabase MCP has been enabled! You can now use Supabase operations directly in our conversation.

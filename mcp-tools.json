@@ -1,0 +1,200 @@
+{
+  "tools": [
+    {
+      "name": "analyze_environment",
+      "description": "Analyze global and project-level MCP configurations, detect conflicts and provide recommendations",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fetch_mcps",
+      "description": "Fetch the latest available MCPs from the official registry. Takes 30 seconds on first run, then cached for 30 minutes.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "force": {
+            "type": "boolean",
+            "description": "Force refresh even if cached data is available"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_mcps",
+      "description": "List all MCPs with their status (enabled/disabled)",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Show only enabled MCPs"
+          },
+          "available": {
+            "type": "boolean",
+            "description": "Show only available (not enabled) MCPs"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "enable_mcp",
+      "description": "Enable an MCP for the current project",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "mcpId": {
+            "type": "string",
+            "description": "The ID of the MCP to enable (e.g., 'supabase', 'github')"
+          },
+          "envVars": {
+            "type": "object",
+            "description": "Environment variables required by the MCP",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["mcpId"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "disable_mcp",
+      "description": "Disable an MCP for the current project",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "mcpId": {
+            "type": "string",
+            "description": "The ID of the MCP to disable"
+          }
+        },
+        "required": ["mcpId"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "auto_detect",
+      "description": "Auto-detect MCPs that would be useful for the current project based on files and configuration",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "search_mcps",
+      "description": "Search for MCPs based on keywords or requirements",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search query (e.g., 'database', 'web scraping', 'github')"
+          }
+        },
+        "required": ["query"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "suggest_mcps",
+      "description": "Get intelligent MCP suggestions based on project requirements",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "requirements": {
+            "type": "string",
+            "description": "Description of what you need (e.g., 'I need to work with databases and APIs')"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "diagnose",
+      "description": "Diagnose issues with the current MCP setup",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_mcp_info",
+      "description": "Get detailed information about a specific MCP",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "mcpId": {
+            "type": "string",
+            "description": "The ID of the MCP to get information about"
+          }
+        },
+        "required": ["mcpId"],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "examples": [
+    {
+      "user": "What MCPs do I have configured?",
+      "assistant": "I'll analyze your MCP environment to see what you have configured.",
+      "tool_calls": [
+        {
+          "tool": "analyze_environment",
+          "parameters": {}
+        }
+      ]
+    },
+    {
+      "user": "I need to work with databases",
+      "assistant": "Let me search for database-related MCPs and suggest the best options for you.",
+      "tool_calls": [
+        {
+          "tool": "search_mcps",
+          "parameters": {
+            "query": "database"
+          }
+        }
+      ]
+    },
+    {
+      "user": "Enable the Supabase MCP",
+      "assistant": "I'll enable the Supabase MCP for your project.",
+      "tool_calls": [
+        {
+          "tool": "enable_mcp",
+          "parameters": {
+            "mcpId": "supabase"
+          }
+        }
+      ]
+    },
+    {
+      "user": "What MCPs should I use for this project?",
+      "assistant": "Let me auto-detect what MCPs would be useful based on your project structure.",
+      "tool_calls": [
+        {
+          "tool": "auto_detect",
+          "parameters": {}
+        }
+      ]
+    },
+    {
+      "user": "Find the latest MCPs available",
+      "assistant": "I'll fetch the latest MCP registry to show you all available options.",
+      "tool_calls": [
+        {
+          "tool": "fetch_mcps",
+          "parameters": {}
+        }
+      ]
+    }
+  ]
+}

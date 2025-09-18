@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * WTF-MCP Interactive Chat
+ * WTF-MCP-Manager Interactive Chat
  * Chatbot CLI qui dialogue avec Claude pour découvrir et installer des MCP dynamiquement
  */
 
@@ -31,7 +31,7 @@ class MCPChatbot {
     console.log(chalk.cyan(`
 ╔════════════════════════════════════════════════════╗
 ║                                                    ║
-║        🤖 WTF-MCP Interactive Assistant           ║
+║        🤖 WTF-MCP-Manager Interactive Assistant   ║
 ║        Chat with me to discover and manage MCPs   ║
 ║                                                    ║
 ╚════════════════════════════════════════════════════╝
