@@ -1,80 +1,65 @@
-# 🎯 WTF-MCP
+# 🎯 WTF-MCP: Chat with Claude to Control Your MCPs
 
 [![npm version](https://badge.fury.io/js/wtf-mcp.svg)](https://badge.fury.io/js/wtf-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> What The F*** MCP Manager - Smart MCP (Model Context Protocol) manager for Claude. Enable/disable MCPs per project, not globally!
+> **Revolutionary MCP Management**: Just talk to Claude! "I need to work with databases" → MCPs auto-discovered and installed. No more configuration hell!
 
-## WTF is this?
+## 🤯 The Magic: Pure Conversation
 
-Tired of Claude having ALL your MCPs enabled globally? Want different tools for different projects? **WTF-MCP** solves this shit!
+**Forget complex commands.** Just chat naturally:
 
-## ✨ Features
+- 💬 **"I need to work with databases"** → Supabase, PostgreSQL MCPs discovered
+- 💬 **"Find MCP for web scraping"** → Brave Search, Firecrawl suggested
+- 💬 **"Install GitHub MCP"** → Installed with environment prompts
+- 💬 **"What can help me with APIs?"** → Smart suggestions based on your needs
 
-- 🎯 **Per-project MCP configuration** - Each project gets its own MCPs
-- 🔍 **Auto-detection** - WTF do I need? Auto-detects Supabase, Docker, GitHub, etc.
-- 🤬 **Simple AF** - One command and you're done
-- 🤖 **Meta-MCP Server** - Control MCPs directly from Claude
-- 📦 **Smart profiles** - dev/prod/test configurations
-- 🏥 **Doctor mode** - WTF is wrong? Diagnose issues instantly
+**This is the first MCP manager that understands what you want, not just what you type.**
 
-## 🚀 Quick Start
+---
 
-```bash
-# Just run this shit
-npx wtf-mcp init
-
-# Or if you prefer
-npm install -g wtf-mcp
-wtf-mcp init
-```
-
-## 📖 Usage
-
-### Initialize in your project
+## 🚀 Get Started in 30 Seconds
 
 ```bash
-cd /your/project
+# 1. Install and chat
+npx wtf-mcp chat
+
+# 2. Or start with auto-detection
 npx wtf-mcp init
 ```
 
-This creates a `.claude/` directory with your MCP configuration. No more global mess!
+**That's it.** The chatbot discovers your needs, suggests MCPs, and configures everything.
 
-### Basic Commands
+---
 
+## 🤖 Two Ways to Control MCPs
+
+### 1. 💬 Interactive Chat (Recommended)
 ```bash
-# WTF do I have?
-npx wtf-mcp list
-
-# Enable some MCP
-npx wtf-mcp enable supabase
-
-# WTF do I need? (auto-detect)
-npx wtf-mcp detect
-
-# WTF is wrong?
-npx wtf-mcp doctor
+npx wtf-mcp chat
 ```
 
-### Interactive Mode
+```
+🤖 Hi! I'm your MCP assistant. What can I help you with?
 
-Don't remember commands? No problem:
+> I need to work with databases
+🔍 Let me find the right MCPs for you...
 
-```bash
-npx wtf-mcp
-# Interactive menu appears - pick what you want!
+📦 Here are the MCPs that match your needs:
+1. Supabase - Database, storage and authentication
+2. PostgreSQL - PostgreSQL database
+3. SQLite - Local SQLite database
+
+What would you like to do?
+• Install one or more MCPs
+• Get more details
+• Continue chatting
 ```
 
-## 🤖 Meta-MCP Server (The Cool Shit)
+### 2. 🎮 Direct from Claude (Meta-MCP)
 
-Start a Meta-MCP that lets you control other MCPs directly from Claude:
+**Enable WTF-MCP as an MCP in Claude:**
 
-1. Start the server:
-```bash
-npx wtf-mcp serve
-```
-
-2. Add to your Claude config:
 ```json
 {
   "mcpServers": {
@@ -86,67 +71,120 @@ npx wtf-mcp serve
 }
 ```
 
-3. In Claude, just say:
-- "WTF MCPs are available?"
-- "Enable that Supabase MCP"
-- "Disable all MCPs except search"
-- "Auto-detect my project MCPs"
+**Then just talk to Claude naturally:**
+- *"What MCPs are available for my project?"*
+- *"Enable the Supabase MCP"*
+- *"I need tools for web development"*
+- *"Auto-detect what MCPs I need"*
 
-## 📦 Supported MCPs
+**Claude will control your MCPs dynamically during conversation!**
 
-| MCP | Auto-detect | WTF it does |
-|-----|-------------|-------------|
-| `supabase` | ✅ | Database & Storage |
-| `github` | ✅ | Git stuff |
-| `docker` | ✅ | Container management |
-| `playwright` | ✅ | Browser automation |
-| `brave-search` | ❌ | Web search |
-| `firecrawl` | ❌ | Web scraping |
-| `vercel` | ✅ | Deployment |
-| `aws` | ✅ | Cloud stuff |
-| `shadcn-ui` | ✅ | UI components |
+---
 
-## 🎭 Examples
+## ✨ Intelligent Features
 
-### Example: Supabase Project
+### 🧠 Smart MCP Discovery
+- **Context-aware**: Understands "databases", "web scraping", "APIs"
+- **Project scanning**: Auto-detects tools from your codebase
+- **Live MCP registry**: Fetches latest MCPs from official sources
+- **Relevance scoring**: Best matches for your needs
 
-```bash
-cd ~/my-supabase-app
-npx wtf-mcp init
-npx wtf-mcp detect
-# Auto-detects: supabase, github
-# Prompts for SUPABASE_URL and keys
+### 🎯 Per-Project Configuration
+- **No global mess**: Each project gets its own `.claude/` config
+- **Environment management**: Secure credential storage
+- **Profile support**: dev/prod/test configurations
+- **Smart defaults**: Works out of the box
+
+### 🔧 Developer Experience
+- **Natural language**: No memorizing commands
+- **Interactive prompts**: Guided setup for credentials
+- **Auto-completion**: Smart suggestions as you type
+- **Error diagnosis**: "WTF is wrong?" diagnostic mode
+
+---
+
+## 📦 Supported MCPs & Auto-Detection
+
+| MCP | Chat Keywords | Auto-detect | Description |
+|-----|---------------|-------------|-------------|
+| **Supabase** | "database", "auth", "storage" | ✅ `supabase/` | Database & Authentication |
+| **GitHub** | "git", "repos", "issues" | ✅ `.git/` | Repository management |
+| **Docker** | "containers", "docker" | ✅ `Dockerfile` | Container management |
+| **Brave Search** | "search", "web" | ❌ | Web search engine |
+| **PostgreSQL** | "postgres", "sql" | ✅ `pg`, `postgresql` | PostgreSQL database |
+| **AWS** | "cloud", "aws" | ✅ `.aws/` | Amazon Web Services |
+| **Playwright** | "testing", "browser" | ✅ `playwright.config` | Browser automation |
+| **Vercel** | "deploy", "hosting" | ✅ `vercel.json` | Deployment platform |
+
+**And 50+ more MCPs discovered dynamically!**
+
+---
+
+## 🎭 Real Examples
+
+### 🏗️ "I'm building a full-stack app"
+```
+🤖 > I'm building a full-stack app with authentication
+
+🔍 Perfect! I found these MCPs for full-stack development:
+• Supabase (database + auth)
+• GitHub (version control)
+• Vercel (deployment)
+• Docker (containerization)
+
+🤖 > Install Supabase and GitHub
+📦 Installing Supabase...
+📝 I need SUPABASE_URL and SUPABASE_SERVICE_KEY
+✅ Supabase configured!
+✅ GitHub configured!
 ```
 
-### Example: Full-Stack Project
+### 🔍 "I need to scrape some websites"
+```
+🤖 > Find MCP for web scraping
 
-```bash
-cd ~/my-fullstack-app
-npx wtf-mcp detect
-# Finds: docker, playwright, github, vercel
-# Enable all? Hell yes!
+🔍 Here are the best MCPs for web scraping:
+• Brave Search (search results)
+• Firecrawl (content extraction)
+• Playwright (browser automation)
+
+Want to install any of these?
 ```
 
-## 🏥 Troubleshooting
+### 🚀 "Auto-detect everything"
+```
+🤖 > Auto-detect my project
 
-Something fucked up? Run the doctor:
+🔍 Scanning your project...
+Found: package.json, Dockerfile, .git/, supabase/
+Suggested: GitHub, Docker, Supabase, Node.js
 
-```bash
-npx wtf-mcp doctor
-# Shows you exactly WTF is wrong and how to fix it
+Install all? [Y/n] y
+✅ All MCPs configured! Ready to code!
 ```
 
-## 🔧 Configuration
+---
 
-Your config lives in `.claude/mcp-config.json`:
+## 🛠️ Technical Details
 
+### Project Structure
+```
+your-project/
+├── .claude/
+│   ├── mcp-config.json    # MCP configuration
+│   ├── .env               # Environment variables
+│   └── .gitignore         # Security
+└── ...
+```
+
+### Sample Configuration
 ```json
 {
-  "project": "my-badass-app",
+  "project": "my-awesome-app",
   "mcpServers": {
     "supabase": {
       "command": "npx",
-      "args": ["-y", "@supabase/mcp-server-supabase@latest"],
+      "args": ["-y", "@supabase/mcp-server-supabase"],
       "env": {
         "SUPABASE_URL": "https://xxx.supabase.co",
         "SUPABASE_SERVICE_KEY": "***"
@@ -156,52 +194,113 @@ Your config lives in `.claude/mcp-config.json`:
 }
 ```
 
-## 🤝 Contributing
+---
 
-Found a bug? Want to add some cool shit? PRs welcome!
+## 🤝 Advanced Usage
 
+### Command Line Interface
 ```bash
-git clone https://github.com/loic/wtf-mcp.git
-cd wtf-mcp
+# Chat interface (recommended)
+npx wtf-mcp chat
+
+# Traditional commands
+npx wtf-mcp init                # Initialize project
+npx wtf-mcp list                # Show all MCPs
+npx wtf-mcp enable supabase     # Enable specific MCP
+npx wtf-mcp detect              # Auto-detect MCPs
+npx wtf-mcp doctor              # Diagnose issues
+
+# Interactive mode
+npx wtf-mcp
+```
+
+### Integration with Claude
+```bash
+# Start Meta-MCP server
+npx wtf-mcp serve
+
+# Add to Claude Desktop config
+# Then control MCPs directly in Claude!
+```
+
+---
+
+## 🚨 Troubleshooting
+
+### "WTF is wrong?" Mode
+```bash
+npx wtf-mcp doctor
+```
+
+Common issues:
+- ❌ **Missing API keys**: Use the chat to configure safely
+- ❌ **Wrong Node version**: Requires Node.js 18+
+- ❌ **Permission errors**: Check `.claude/` directory permissions
+- ❌ **MCP not working**: Run `doctor` for specific diagnostics
+
+---
+
+## 🌟 Why WTF-MCP Changes Everything
+
+### Before WTF-MCP 😤
+- Manual JSON configuration
+- Global MCP chaos
+- Google for MCP names
+- Environment variable hell
+- No project isolation
+
+### After WTF-MCP 😎
+- **"I need databases"** → Done
+- **Per-project** everything
+- **Auto-discovery** of MCPs
+- **Secure** credential management
+- **Talk to Claude** to control MCPs
+
+---
+
+## 🚀 Installation & Publishing
+
+### Use Directly
+```bash
+npx wtf-mcp chat  # Start chatting immediately
+```
+
+### Install Globally
+```bash
+npm install -g wtf-mcp
+wtf-mcp chat
+```
+
+### Development
+```bash
+git clone https://github.com/bacoco/wtf-mcp-manager.git
+cd wtf-mcp-manager
 npm install
-# Make your changes
 npm test
 ```
 
-## 📄 License
+---
 
-MIT - Do whatever the fuck you want with it!
+## 🎯 The Future is Conversational
 
-## 🙏 Credits
+**Stop fighting with configuration files.** Start talking to your tools.
 
-- [Anthropic](https://anthropic.com) for Claude and MCP
-- All the awesome MCP server authors
-- You, for using this shit
+**WTF-MCP** is the first step toward truly conversational development environments. Your IDE understands what you're building and configures itself.
 
 ---
 
-## Why WTF-MCP?
+## 📄 License & Credits
 
-### The Problem 😤
-- Claude's default MCP config is **GLOBAL** (WTF?)
-- Every project gets ALL MCPs (messy AF)
-- Manual configuration sucks
-- No easy way to manage per project
+**MIT License** - Do whatever you want!
 
-### The Solution 😎
-- ✅ **Per-project** configs (finally!)
-- ✅ **Auto-detection** (smart AF)
-- ✅ **Meta-MCP** control from Claude
-- ✅ **One command** to rule them all
+Built with ❤️ for developers who are tired of configuration hell.
 
-## Real Talk
-
-Look, managing MCPs shouldn't be this hard. You want Supabase for your Supabase project, Docker for your Docker project, not everything everywhere all at once. WTF-MCP fixes this shit.
-
-Install it, run it, forget about it. It just works.
+- [Anthropic Claude](https://anthropic.com) - For the best AI assistant
+- [Model Context Protocol](https://modelcontextprotocol.io) - For the amazing standard
+- **You** - For choosing the conversational future
 
 ---
 
-**Made with 🤬 and ❤️ for developers who are tired of configuration hell**
+**Made with 🤬 and ❤️ because seriously, WTF were we doing before this?**
 
-*PS: Yes, the name is intentional. Because seriously, WTF were we doing before this?*
+*The last MCP manager you'll ever need to learn.*
