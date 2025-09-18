@@ -254,6 +254,49 @@ program
     });
   });
 
+// Global command - manage global Claude MCPs
+program
+  .command('global <action> [mcp]')
+  .description('Manage global Claude MCPs (list, disable)')
+  .action(async (action, mcpId) => {
+    const { WTFMCPManagerServer } = await import('../lib/mcp-server.js');
+    const server = new WTFMCPManagerServer();
+
+    try {
+      if (action === 'list') {
+        const analysis = await server.analyzeMCPEnvironment();
+        console.log(chalk.cyan('\n📦 Global MCPs in Claude:\n'));
+
+        if (analysis.global.mcps.length === 0) {
+          console.log(chalk.gray('No global MCPs configured'));
+        } else {
+          analysis.global.mcps.forEach(mcp => {
+            console.log(`  • ${chalk.cyan(mcp)}`);
+          });
+        }
+
+        console.log(chalk.gray(`\nConfig: ${analysis.global.configPath}`));
+      } else if (action === 'disable' && mcpId) {
+        const spinner = ora(`Disabling global MCP: ${mcpId}...`).start();
+
+        try {
+          const result = await server.disableGlobalMCP(mcpId);
+          spinner.succeed(chalk.green(`✅ ${result.message}`));
+          console.log(chalk.yellow(`\n⚠️  ${result.action}`));
+          console.log(chalk.gray(`\nRemaining global MCPs: ${result.remainingMCPs.join(', ')}`));
+        } catch (error) {
+          spinner.fail(chalk.red(`Failed: ${error.message}`));
+        }
+      } else {
+        console.log(chalk.yellow('Usage: wtf-mcp-manager global <list|disable> [mcp-name]'));
+        console.log(chalk.gray('  list    - Show all global MCPs'));
+        console.log(chalk.gray('  disable - Remove a global MCP'));
+      }
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+    }
+  });
+
 // Doctor command
 program
   .command('doctor')
