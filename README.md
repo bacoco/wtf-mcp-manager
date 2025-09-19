@@ -1,20 +1,30 @@
-# 🎯 WTF-MCP-Manager: Chat with Claude to Control Your MCPs
+# 🎯 WTF-MCP-Manager: Dynamic MCP Generation Engine for Claude
 
 [![npm version](https://badge.fury.io/js/wtf-mcp-manager.svg)](https://badge.fury.io/js/wtf-mcp-manager)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **Revolutionary MCP Management**: Just talk to Claude! "I need to work with databases" → MCPs auto-discovered and installed. No more configuration hell!
+> **🚀 NEW v2.0: Dynamic MCP Generation!** Create MCPs from ANY API on-the-fly. Just tell Claude what you need: "I need weather data" → MCP generated instantly from any weather API!
 
-## 🤯 The Magic: Pure Conversation
+## 🤯 The Magic: Dynamic MCP Generation
 
-**Forget complex commands.** Just chat naturally:
+**v2.0 - Generate MCPs from ANY API instantly!**
 
-- 💬 **"I need to work with databases"** → Supabase, PostgreSQL MCPs discovered
-- 💬 **"Find MCP for web scraping"** → Brave Search, Firecrawl suggested
-- 💬 **"Install GitHub MCP"** → Installed with environment prompts
-- 💬 **"What can help me with APIs?"** → Smart suggestions based on your needs
+### ✨ New Capabilities
 
-**This is the first MCP manager that understands what you want, not just what you type.**
+- 🎯 **Dynamic Generation**: Create MCPs from any API specification
+- 🔍 **Intelligent Discovery**: Find APIs using Gorilla API & web scraping
+- 🚀 **Zero Config**: Generate and deploy MCPs without writing code
+- 🔄 **Multi-MCP Workflows**: Compose multiple MCPs into workflows
+- 🧪 **Auto-Testing**: Validate generated MCPs automatically
+
+### 💬 Just Chat Naturally
+
+- **"I need weather data"** → Discovers weather APIs, generates MCP instantly
+- **"Connect to my FastAPI app"** → Converts your FastAPI to MCP automatically
+- **"Find API for stock prices"** → Discovers and creates stock market MCP
+- **"Sync data between services"** → Creates multi-MCP workflow
+
+**One MCP to rule them all - Install once, generate infinite MCPs!**
 
 ---
 
@@ -116,6 +126,54 @@ npx wtf-mcp-manager doctor              # Diagnose issues
 ---
 
 ## 🎭 Real Examples
+
+### 🌟 NEW: Dynamic MCP Generation
+
+#### Generate from ANY API
+```
+🤖 > I need cryptocurrency prices
+
+🔍 Discovering crypto APIs...
+Found: CoinGecko, Binance, CoinMarketCap
+
+✨ Generating MCP from CoinGecko API...
+📦 Created with tools:
+- get_price(coin_id, currency)
+- get_market_data(coin_id)
+- get_trending_coins()
+
+✅ CoinGecko MCP ready to use!
+```
+
+#### Convert FastAPI to MCP
+```
+🤖 > Convert my FastAPI app at /api/app.py to MCP
+
+🔄 Analyzing FastAPI application...
+Found 5 endpoints
+
+✨ Generating MCP wrapper...
+📦 Created MCP with all your endpoints as tools
+
+✅ Your FastAPI is now an MCP!
+```
+
+#### Create Multi-MCP Workflows
+```
+🤖 > Create workflow to sync GitHub issues to Notion
+
+🔗 Creating workflow with:
+- GitHub MCP (fetch issues)
+- Notion MCP (create pages)
+
+✨ Workflow created:
+1. Fetch new GitHub issues
+2. Transform to Notion format
+3. Create Notion pages
+4. Update GitHub with links
+
+✅ Workflow deployed and running!
+```
 
 ### 🏗️ "I'm building a full-stack app"
 ```

@@ -1,0 +1,103 @@
+#!/usr/bin/env node
+
+/**
+ * Generated MCP Server for {{API_NAME}}
+ * Created: {{TIMESTAMP}}
+ * Type: REST API
+ */
+
+class {{CLASS_NAME}}MCPServer {
+  constructor() {
+    this.apiBase = '{{API_BASE}}';
+    this.tools = [];
+  }
+
+  async initialize() {
+    console.error('🚀 {{API_NAME}} MCP Server starting...');
+    this.setupTools();
+  }
+
+  setupTools() {
+    {{TOOLS_SETUP}}
+  }
+
+  async handleRequest(method, params = {}) {
+    try {
+      switch (method) {
+        {{REQUEST_HANDLERS}}
+        default:
+          throw new Error(`Unknown method: ${method}`);
+      }
+    } catch (error) {
+      return { error: error.message };
+    }
+  }
+
+  async run() {
+    await this.initialize();
+    process.stdin.setEncoding('utf-8');
+    let buffer = '';
+
+    process.stdin.on('data', async (chunk) => {
+      buffer += chunk;
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.trim()) {
+          try {
+            const request = JSON.parse(line);
+            await this.handleProtocol(request);
+          } catch (error) {
+            console.log(JSON.stringify({
+              jsonrpc: "2.0",
+              error: { code: -32700, message: "Parse error" }
+            }));
+          }
+        }
+      }
+    });
+  }
+
+  async handleProtocol(request) {
+    if (request.method === 'initialize') {
+      console.log(JSON.stringify({
+        jsonrpc: "2.0",
+        id: request.id,
+        result: {
+          protocolVersion: "2024-11-05",
+          capabilities: { tools: {} },
+          serverInfo: { name: "{{API_NAME}}-mcp", version: "1.0.0" }
+        }
+      }));
+    } else if (request.method === 'tools/list') {
+      console.log(JSON.stringify({
+        jsonrpc: "2.0",
+        id: request.id,
+        result: { tools: this.tools }
+      }));
+    } else if (request.method === 'tools/call') {
+      const result = await this.handleRequest(request.params.name, request.params.arguments);
+      console.log(JSON.stringify({
+        jsonrpc: "2.0",
+        id: request.id,
+        result: {
+          content: [{
+            type: "text",
+            text: JSON.stringify(result, null, 2)
+          }]
+        }
+      }));
+    } else {
+      console.log(JSON.stringify({
+        jsonrpc: "2.0",
+        id: request.id,
+        error: { code: -32601, message: "Method not found" }
+      }));
+    }
+  }
+}
+
+// Run the server
+const server = new {{CLASS_NAME}}MCPServer();
+server.run().catch(console.error);
