@@ -19,10 +19,10 @@
     "prepare": "npm run build",
     "build": "echo 'Build complete'",
     "postinstall": "node scripts/postinstall.js || true",
-    "dev:router": "node lib/mcp-server.js",
-    "compose:up": "docker compose up --build",
-    "compose:down": "docker compose down",
-    "smoke:router": "node scripts/docker-smoke-test.js"
+    "compose:up": "docker compose --env-file .env up --build -d",
+    "compose:down": "docker compose --env-file .env down",
+    "compose:logs": "docker compose --env-file .env logs -f router",
+    "compose:test": "docker compose --env-file .env run --rm router node scripts/healthcheck.js"
   },
   "keywords": [
     "claude",

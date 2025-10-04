@@ -1,23 +1,27 @@
-FROM node:20-alpine AS base
+# syntax=docker/dockerfile:1
 
+FROM node:20-alpine AS base
 WORKDIR /app
 
-# Install production dependencies first to leverage Docker layer caching
-COPY package.json package-lock.json ./
+# Install production dependencies first for better caching
+COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Copy source files required at runtime
+# Copy application source
 COPY bin ./bin
 COPY lib ./lib
 COPY scripts ./scripts
-COPY registry ./registry
-COPY templates ./templates
-COPY README.md LICENSE ./
+COPY docs ./docs
+COPY mcp-tools.json ./mcp-tools.json
 
-ENV NODE_ENV=production \
-    PORT=8080 \
-    VECTOR_DB_URL=http://qdrant:6333
+# Ensure CLI entrypoint is executable
+RUN chmod +x bin/wtf-mcp.js
 
-EXPOSE 8080
+ENV NODE_ENV=production
 
-ENTRYPOINT ["node", "lib/mcp-server.js"]
+# The meta MCP server acts as the router
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 CMD ["node", "scripts/healthcheck.js"]
+
+CMD ["node", "lib/mcp-server.js"]
