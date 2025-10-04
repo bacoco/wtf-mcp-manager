@@ -308,6 +308,64 @@ Common issues:
 
 ---
 
+## 🧱 Deployment & Operations
+
+### Docker Compose quickstart
+
+```yaml
+services:
+  wtf-mcp-manager:
+    image: node:20
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - ./.claude:/app/.claude
+    command: ["npx", "wtf-mcp-manager", "serve"]
+    environment:
+      # Claude / Anthropic credentials for conversational control
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # Optional: override or supplement registry metadata
+      WTF_MCP_REGISTRY_OVERRIDES: /app/.claude/registry-overrides.json
+    ports:
+      - "8722:8722"
+```
+
+1. Copy the snippet into `docker-compose.yml` inside your project.
+2. Run `docker compose up --build` to boot the server with persistent `.claude` state mounted from the host.
+3. Update `.claude/mcp-config.json` or use the CLI from inside the container to enable/disable MCPs per environment.【F:lib/manager.js†L10-L118】【F:bin/wtf-mcp.js†L33-L121】
+
+### Environment variables at a glance
+
+| MCP | Required env vars | Source |
+|-----|-------------------|--------|
+| Supabase | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | `.claude/.env`, secret manager | 
+| Brave Search | `BRAVE_API_KEY` | `.claude/.env`, secret manager |
+| Firecrawl | `FIRECRAWL_API_KEY` | `.claude/.env`, secret manager |
+| GitHub | `GITHUB_TOKEN` | `.claude/.env`, secret manager |
+| Vercel | `VERCEL_TOKEN` | `.claude/.env`, secret manager |
+| AWS | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | `.claude/.env`, secret manager |
+
+The registry also includes Docker, Playwright, Context7, Semgrep, and other MCPs that do not require secrets by default.【F:lib/registry.js†L5-L121】 Keep secrets out of version control—`wtf-mcp-manager` writes them to `.claude/.env` when you supply values through the CLI prompts.【F:lib/manager.js†L128-L213】【F:bin/wtf-mcp.js†L90-L137】
+
+### Extend metadata without touching code
+
+1. Create `.claude/registry-overrides.json` or point `WTF_MCP_REGISTRY_OVERRIDES` at a JSON file containing new MCP definitions.
+2. Each JSON entry should include the MCP id and its metadata (name, command, args, required env vars, categories).
+3. Restart the server or rerun `wtf-mcp-manager list`—overrides are merged on load, enabling `enable`/`disable` workflows for the new MCPs immediately.【F:lib/registry.js†L1-L121】【F:bin/wtf-mcp.js†L72-L158】
+
+See [docs/router.md](docs/router.md) for architecture diagrams detailing how overrides participate in ingestion and routing.
+
+### Maintenance playbook
+
+| Task | When | How |
+|------|------|-----|
+| Re-index registry metadata | After registry refreshes or override edits | Run `wtf-mcp-manager fetch --force` then rebuild your embeddings or rerun the vectorizer job.【F:lib/mcp-server.js†L120-L188】 |
+| Refresh auto-detection signals | When project structure changes | Execute `wtf-mcp-manager detect` to rescan the repository for MCP hints.【F:bin/wtf-mcp.js†L158-L206】 |
+| Monitor relevance metrics | Continuous | Track match scores returned by your vector store and log how often suggested MCPs are accepted; alert when similarity or acceptance rate dips. |
+| Tune performance | When latency increases | Adjust caching windows (30-minute TTL) and prewarm embeddings for frequently used MCP families.【F:lib/mcp-server.js†L24-L33】【F:docs/router.md†L17-L70】 |
+
+---
+
 ## 🚀 Installation & Publishing
 
 ### Use Directly
