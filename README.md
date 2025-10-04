@@ -312,6 +312,80 @@ npx wtf-mcp-manager serve
 # Then control MCPs directly in Claude!
 ```
 
+### Semantic Router & Retrieval
+
+The router module keeps a normalized catalogue of MCP metadata, embeds it, and serves fast semantic retrieval for Claude. Run the dedicated CLI to keep the vector store fresh:
+
+```bash
+# Normalize metadata from the registry, local configs, and custom files
+npx wtf-mcp-router ingest
+
+# Debug a query against the vector DB
+npx wtf-mcp-router retrieve "I need a database API"
+```
+
+#### Configuration cheat sheet
+
+| Variable | Description |
+| --- | --- |
+| `ROUTER_VECTOR_STORE` | `memory` (default), `supabase`, `qdrant`, or `chroma`. |
+| `ROUTER_VECTOR_STORE_URL` / `ROUTER_VECTOR_STORE_API_KEY` | Connection details for remote stores. |
+| `ROUTER_SUPABASE_TABLE` / `ROUTER_SUPABASE_SCHEMA` / `ROUTER_SUPABASE_MATCH_FN` | Supabase table + RPC function for pgvector search. |
+| `ROUTER_QDRANT_COLLECTION` / `ROUTER_QDRANT_TIMEOUT_MS` | Target collection + timeout. |
+| `ROUTER_CHROMA_COLLECTION` / `ROUTER_CHROMA_TENANT` / `ROUTER_CHROMA_DATABASE` | Chroma namespace configuration. |
+| `ROUTER_EMBEDDING_PROVIDER` | `openai`, `anthropic`, or `local` (hash-based fallback). |
+| `ROUTER_EMBEDDING_MODEL` / `ROUTER_EMBEDDING_ENDPOINT` | Override provider defaults. |
+| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | Credentials for embedding providers. |
+| `ROUTER_REMOTE_REGISTRIES` | Comma-separated registry URLs to ingest (JSON/YAML). |
+| `ROUTER_ADDITIONAL_GLOBS` | Glob patterns for local JSON/YAML MCP definitions. |
+| `ROUTER_DYNAMIC_CONFIG_DIR` | Relative directory that contains generated MCP manifests (`.claude` by default). |
+| `ROUTER_TOP_K` | Default number of matches returned by the retriever. |
+| `ROUTER_CACHE_TTL_MS` | Cache lifetime for repeated lookups. |
+| `ROUTER_MEMORY_STORE_PATH` | On-disk cache file when using the built-in memory vector store. |
+| `ROUTER_AUTO_INGEST` | Set to `true` to ingest automatically when the MCP server boots. |
+| `ROUTER_OBSERVABILITY_ENABLED` / `ROUTER_OBSERVABILITY_EMITTER` | Emit router latency + count metrics (defaults to console JSON). |
+
+> ⚠️ Vector store clients are optional dependencies. Install the ones you need, e.g. `npm install openai`, `npm install @supabase/supabase-js`, `npm install @qdrant/js-client-rest`, or `npm install chromadb`.
+
+#### Local Docker Compose profiles
+
+Quick-start infrastructure for local retrieval experiments:
+
+```yaml
+# docker-compose.router.yml
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+  chroma:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+```
+
+Point the router at one of the services:
+
+```bash
+ROUTER_VECTOR_STORE=qdrant \
+ROUTER_VECTOR_STORE_URL=http://localhost:6333 \
+ROUTER_QDRANT_COLLECTION=mcp-router \
+npx wtf-mcp-router ingest
+```
+
+#### Observability hooks
+
+Enable lightweight JSON metrics during ingestion and retrieval by setting:
+
+```bash
+export ROUTER_OBSERVABILITY_ENABLED=true
+export ROUTER_OBSERVABILITY_EMITTER=console
+```
+
+The MCP server will log per-query latency and hit counts, which can be piped to your tracing or token-tracking pipeline.
+
 ---
 
 ## 🚨 Troubleshooting

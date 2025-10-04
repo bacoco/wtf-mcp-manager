@@ -10,7 +10,8 @@
   "bin": {
     "wtf-mcp-manager": "./bin/wtf-mcp.js",
     "wtf-mcp": "./bin/wtf-mcp.js",
-    "claude-mcp": "./bin/wtf-mcp.js"
+    "claude-mcp": "./bin/wtf-mcp.js",
+    "wtf-mcp-router": "./bin/wtf-mcp-router.js"
   },
   "scripts": {
     "test": "node test/test-mcp-server.js && node test/test-ingestion.js",
