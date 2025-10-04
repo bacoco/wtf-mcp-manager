@@ -86,6 +86,81 @@ npx wtf-mcp-manager doctor              # Diagnose issues
 
 ---
 
+## 🛰 Router & Vector Retrieval Service
+
+The MCP manager now ships with an optional HTTP router that fronts a vector database. The CLI (`wtf-mcp-manager`) and the MCP tools will automatically call this service whenever `MCP_ROUTER_URL` is configured. If the router cannot be reached the manager gracefully falls back to the local search heuristics, so offline usage continues to work.
+
+### Quick start
+
+```bash
+# Start the router against a locally running vector DB
+npm run router
+
+# Or launch the full stack (router + Qdrant) with Docker
+docker compose up --build
+```
+
+The router exposes the following endpoints:
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /router/query` | Query the vector retriever. Body: `{ query, topK?, filter?, scoreThreshold? }`. |
+| `POST /router/upsert` | Ingest or update documents. Body: `{ documents: [{ id, text, metadata, ... }] }`. |
+| `POST /router/delete` | Remove vectors by id. Body: `{ ids: string[] }`. |
+| `GET /health` | Readiness and vector DB diagnostics. |
+
+When `ROUTER_API_KEY` is set the router requires callers to send the matching value in the `x-api-key` header. The client automatically includes `MCP_ROUTER_API_KEY` (or `ROUTER_API_KEY`) when available.
+
+### Environment variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `ROUTER_PORT` | `3333` | TCP port for the HTTP wrapper. |
+| `ROUTER_HOST` | `0.0.0.0` | Bind address for the router. |
+| `VECTOR_DB_URL` | `http://localhost:6333` | Qdrant (or compatible) base URL. |
+| `VECTOR_DB_COLLECTION` | `wtf-mcp-router` | Collection name for stored MCP vectors. |
+| `VECTOR_BOOTSTRAP` | `true` | Seed the vector store from the built-in registry on start. |
+| `VECTOR_BOOTSTRAP_FORCE` | `false` | Force a fresh bootstrap even when vectors exist. |
+| `ROUTER_API_KEY` | unset | Require `x-api-key` authentication for HTTP requests. |
+| `MCP_ROUTER_URL` | unset | CLI and MCP server will use the router when provided. |
+| `MCP_ROUTER_API_KEY` | unset | API key sent by clients when calling the router. |
+
+### Docker Compose deployment
+
+The included `docker-compose.yml` spins up the router alongside a Qdrant vector database. The router image is built from the local source (`Dockerfile`) and automatically bootstraps the MCP registry into Qdrant. To launch the stack:
+
+```bash
+docker compose up --build
+```
+
+Persisted data lives in the `qdrant_data` volume. Override environment variables via a `.env` file (for example to set `ROUTER_API_KEY` or change the exposed ports).
+
+### Security notes
+
+- Always set `ROUTER_API_KEY` (and `MCP_ROUTER_API_KEY` for clients) before exposing the router outside of localhost. The server rejects unauthenticated traffic when the key is present.
+- Run Qdrant and the router on a private network or behind a reverse proxy that terminates TLS. The vector DB should never be reachable directly from the public internet.
+- Store secrets in `.env` files or secret managers rather than committing them to git. The CLI automatically respects environment variables at runtime.
+- Consider restricting Docker network access (`docker compose --profile internal` or a custom network) if you deploy alongside other infrastructure.
+
+### Local profiling
+
+Use the bundled scripts to profile performance hotspots:
+
+```bash
+# Generate a V8 CPU profile for the router
+npm run profile:router
+
+# Inspect the resulting isolate file
+node --prof-process isolate-*.log
+
+# For live debugging, start with the inspector enabled
+NODE_OPTIONS="--inspect" npm run router
+```
+
+These commands work both on bare metal and inside the Docker container (`docker compose run --service-ports router npm run profile:router`).
+
+---
+
 ## ✨ Intelligent Features
 
 ### 🧠 Smart MCP Discovery

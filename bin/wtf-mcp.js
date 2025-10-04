@@ -15,6 +15,7 @@ import fs from 'fs/promises';
 import { MCPManager } from '../lib/manager.js';
 import { MCPRegistry } from '../lib/registry.js';
 import { AutoDetector } from '../lib/detector.js';
+import { RouterClient } from '../lib/router/client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -22,6 +23,7 @@ const packageJson = JSON.parse(await fs.readFile(join(__dirname, '..', 'package.
 
 const program = new Command();
 const manager = new MCPManager();
+const routerClient = new RouterClient();
 
 // Banner
 function showBanner() {
@@ -116,6 +118,54 @@ program
     }
     
     console.log(chalk.yellow('\n✅ = Enabled | ❌ = WTF not enabled yet\n'));
+  });
+
+// Search command (uses router when available)
+program
+  .command('search <query>')
+  .description('Search for MCPs that match your query')
+  .option('-k, --top <number>', 'Number of matches to display', '8')
+  .action(async (query, options) => {
+    const top = Math.max(1, parseInt(options.top, 10) || 8);
+
+    let results = [];
+    let usedRouter = false;
+
+    if (routerClient.isConfigured) {
+      try {
+        results = await routerClient.query({ query, topK: top }) || [];
+        usedRouter = Array.isArray(results) && results.length > 0;
+      } catch (error) {
+        console.log(chalk.yellow(`⚠️  Router search failed (${error.message}). Falling back to local registry.`));
+        results = [];
+      }
+    }
+
+    if (!results || results.length === 0) {
+      const fallbackRegistry = new MCPRegistry();
+      results = fallbackRegistry.search(query).slice(0, top);
+    }
+
+    if (results.length === 0) {
+      console.log(chalk.yellow(`No MCPs found for "${query}"`));
+      return;
+    }
+
+    console.log(chalk.cyan(`\n🔍 Results for "${query}":${usedRouter ? ' (via router)' : ''}\n`));
+    results.forEach((mcp, index) => {
+      const name = mcp.name || mcp.id;
+      const description = mcp.description || '';
+      const score = typeof mcp.score === 'number' ? ` (score: ${mcp.score.toFixed(3)})` : '';
+      console.log(`${String(index + 1).padStart(2, '0')}. ${chalk.green(name)}${score}`);
+      if (description) {
+        console.log(chalk.gray(`    ${description}`));
+      }
+      if (mcp.categories && mcp.categories.length) {
+        console.log(chalk.gray(`    Categories: ${mcp.categories.join(', ')}`));
+      }
+    });
+
+    console.log('');
   });
 
 // Enable command

@@ -14,7 +14,9 @@
     "lint": "eslint lib/",
     "prepare": "npm run build",
     "build": "echo 'Build complete'",
-    "postinstall": "node scripts/postinstall.js || true"
+    "postinstall": "node scripts/postinstall.js || true",
+    "router": "node lib/server/http.js",
+    "profile:router": "node --prof lib/server/http.js"
   },
   "keywords": [
     "claude",
