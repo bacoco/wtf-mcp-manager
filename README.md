@@ -3,28 +3,40 @@
 [![npm version](https://badge.fury.io/js/wtf-mcp-manager.svg)](https://badge.fury.io/js/wtf-mcp-manager)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **🚀 NEW v2.0: Dynamic MCP Generation!** Create MCPs from ANY API on-the-fly. Just tell Claude what you need: "I need weather data" → MCP generated instantly from any weather API!
+> **Status: v1.1.0 (experimental dynamic generation)**  
+> The current release ships a heuristic discovery pipeline and a template-based MCP generator. Automated Gorilla discovery, workflow orchestration, and end-to-end testing are still on the roadmap.
 
-## 🤯 The Magic: Dynamic MCP Generation
+## 🤯 What Dynamic Generation Means Today
 
-**v2.0 - Generate MCPs from ANY API instantly!**
+The `lib/discovery/api-discovery.js` module combines several pragmatic heuristics to propose candidate APIs:
 
-### ✨ New Capabilities
+- 🔎 **Curated Database Search** – Queries the local API catalog shipped in `lib/discovery/api-database.js` for quick matches.
+- 🌐 **Public Registry Lookups** – Pulls data from APIs.guru and other public indexes when network access is available.
+- 🐙 **GitHub Repository Scan** – Hits the GitHub search endpoint for repos whose descriptions mention the requested capability.
+- 🧭 **Domain Hints** – Falls back to the hard-coded maritime/weather catalog in `lib/discovery/web-search.js` when web search APIs require keys.
 
-- 🎯 **Dynamic Generation**: Create MCPs from any API specification
-- 🔍 **Intelligent Discovery**: Find APIs using Gorilla API & web scraping
-- 🚀 **Zero Config**: Generate and deploy MCPs without writing code
-- 🔄 **Multi-MCP Workflows**: Compose multiple MCPs into workflows
-- 🧪 **Auto-Testing**: Validate generated MCPs automatically
+These sources are merged, deduplicated, and scored before being returned to Claude. The Gorilla API endpoint is referenced in code but not yet wired up with authentication or ranking, so Gorilla-powered discovery remains future work.
 
-### 💬 Just Chat Naturally
+## 🛠️ Template-Based MCP Generation
 
-- **"I need weather data"** → Discovers weather APIs, generates MCP instantly
-- **"Connect to my FastAPI app"** → Converts your FastAPI to MCP automatically
-- **"Find API for stock prices"** → Discovers and creates stock market MCP
-- **"Sync data between services"** → Creates multi-MCP workflow
+`lib/dynamic/mcp-generator.js` renders language-specific templates from `lib/templates/` to build runnable MCP servers on the fly, and `lib/mcp-server.js` exposes that generator through the MCP protocol. Today this means:
 
-**One MCP to rule them all - Install once, generate infinite MCPs!**
+- ✨ **Template Rendering** – REST, FastAPI, GraphQL, and WebSocket scaffolds interpolate API metadata into ready-to-run projects.
+- 🗂️ **Local File Output** – Generated servers are stored under `.claude/dynamic-mcps/` with simple lifecycle tracking.
+- 🧰 **Manual Review Expected** – Generated code focuses on shape and wiring; authentication, pagination, and schema validation still require human tweaks.
+
+### Current Limitations
+
+- 🚫 No Gorilla API integration yet, so discovery relies on local heuristics and public registries.
+- ⚙️ No automatic end-to-end verification—the repository’s Node-based smoke test does not exercise generated MCPs.
+- 🔄 Multi-MCP workflows, zero-config deployment, and other roadmap items described in earlier drafts have not been implemented.
+
+### Roadmap Highlights
+
+- Integrate Gorilla search once API access is available.
+- Expand `web-search.js` beyond maritime/weather shortcuts to real web queries.
+- Add automated regression tests for the generator output and live MCP lifecycle.
+- Revisit workflow orchestration once the generation pipeline is battle-tested.
 
 ---
 
@@ -258,11 +270,38 @@ npx wtf-mcp-manager init                # Initialize project
 npx wtf-mcp-manager list                # Show all MCPs
 npx wtf-mcp-manager enable supabase     # Enable specific MCP
 npx wtf-mcp-manager detect              # Auto-detect MCPs
+npx wtf-mcp-manager ingest              # Ingest metadata into your vector store
 npx wtf-mcp-manager doctor              # Diagnose issues
 
 # Interactive mode
 npx wtf-mcp-manager
 ```
+
+### Vector Store Ingestion & Embeddings
+
+Use the `ingest` command to collect all MCP metadata from the built-in registry, discovery modules, and tool definitions, then persist it to your vector database for semantic search.
+
+```bash
+# Dry run – view a preview without writing
+npx wtf-mcp-manager ingest --dry-run
+
+# Full ingestion (requires environment variables below)
+npx wtf-mcp-manager ingest
+```
+
+Set the required credentials in `.claude/.env` (loaded automatically when the CLI runs):
+
+| Variable | Description |
+|----------|-------------|
+| `VECTOR_DB_PROVIDER` | Vector database provider (currently `chroma` is supported). |
+| `VECTOR_DB_URL` | Base URL for the vector database REST API. |
+| `VECTOR_DB_COLLECTION` | Collection/table name for MCP metadata (defaults to `wtf-mcps`). |
+| `VECTOR_DB_API_KEY` | API key or bearer token for the vector database (optional). |
+| `EMBEDDING_PROVIDER` | Embedding provider identifier (supports `anthropic`). |
+| `ANTHROPIC_API_KEY` | API key used to request embeddings from Anthropic. |
+| `ANTHROPIC_EMBEDDING_MODEL` | Override the Anthropic embedding model (defaults to `text-embedding-001`). |
+
+> 💡 These settings live beside your project configuration in `.claude/.env`, keeping secrets out of version control while letting the CLI bootstrap new MCP metadata automatically.
 
 ### Integration with Claude
 ```bash
@@ -412,6 +451,10 @@ npm test
 **WTF-MCP-Manager** is the first step toward truly conversational development environments. Your IDE understands what you're building and configures itself.
 
 ---
+
+## 🧭 Architecture & Ops Docs
+
+- [Router, Retriever & Vector Store Overview](docs/router.md) – Deep dive into query routing, vector search flow, Docker Compose deployment, and maintenance runbooks.
 
 ## 📄 License & Credits
 
