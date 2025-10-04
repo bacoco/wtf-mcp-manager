@@ -3,28 +3,40 @@
 [![npm version](https://badge.fury.io/js/wtf-mcp-manager.svg)](https://badge.fury.io/js/wtf-mcp-manager)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **🚀 NEW v2.0: Dynamic MCP Generation!** Create MCPs from ANY API on-the-fly. Just tell Claude what you need: "I need weather data" → MCP generated instantly from any weather API!
+> **Status: v1.1.0 (experimental dynamic generation)**  
+> The current release ships a heuristic discovery pipeline and a template-based MCP generator. Automated Gorilla discovery, workflow orchestration, and end-to-end testing are still on the roadmap.
 
-## 🤯 The Magic: Dynamic MCP Generation
+## 🤯 What Dynamic Generation Means Today
 
-**v2.0 - Generate MCPs from ANY API instantly!**
+The `lib/discovery/api-discovery.js` module combines several pragmatic heuristics to propose candidate APIs:
 
-### ✨ New Capabilities
+- 🔎 **Curated Database Search** – Queries the local API catalog shipped in `lib/discovery/api-database.js` for quick matches.
+- 🌐 **Public Registry Lookups** – Pulls data from APIs.guru and other public indexes when network access is available.
+- 🐙 **GitHub Repository Scan** – Hits the GitHub search endpoint for repos whose descriptions mention the requested capability.
+- 🧭 **Domain Hints** – Falls back to the hard-coded maritime/weather catalog in `lib/discovery/web-search.js` when web search APIs require keys.
 
-- 🎯 **Dynamic Generation**: Create MCPs from any API specification
-- 🔍 **Intelligent Discovery**: Find APIs using Gorilla API & web scraping
-- 🚀 **Zero Config**: Generate and deploy MCPs without writing code
-- 🔄 **Multi-MCP Workflows**: Compose multiple MCPs into workflows
-- 🧪 **Auto-Testing**: Validate generated MCPs automatically
+These sources are merged, deduplicated, and scored before being returned to Claude. The Gorilla API endpoint is referenced in code but not yet wired up with authentication or ranking, so Gorilla-powered discovery remains future work.
 
-### 💬 Just Chat Naturally
+## 🛠️ Template-Based MCP Generation
 
-- **"I need weather data"** → Discovers weather APIs, generates MCP instantly
-- **"Connect to my FastAPI app"** → Converts your FastAPI to MCP automatically
-- **"Find API for stock prices"** → Discovers and creates stock market MCP
-- **"Sync data between services"** → Creates multi-MCP workflow
+`lib/dynamic/mcp-generator.js` renders language-specific templates from `lib/templates/` to build runnable MCP servers on the fly, and `lib/mcp-server.js` exposes that generator through the MCP protocol. Today this means:
 
-**One MCP to rule them all - Install once, generate infinite MCPs!**
+- ✨ **Template Rendering** – REST, FastAPI, GraphQL, and WebSocket scaffolds interpolate API metadata into ready-to-run projects.
+- 🗂️ **Local File Output** – Generated servers are stored under `.claude/dynamic-mcps/` with simple lifecycle tracking.
+- 🧰 **Manual Review Expected** – Generated code focuses on shape and wiring; authentication, pagination, and schema validation still require human tweaks.
+
+### Current Limitations
+
+- 🚫 No Gorilla API integration yet, so discovery relies on local heuristics and public registries.
+- ⚙️ No automatic end-to-end verification—the repository’s Node-based smoke test does not exercise generated MCPs.
+- 🔄 Multi-MCP workflows, zero-config deployment, and other roadmap items described in earlier drafts have not been implemented.
+
+### Roadmap Highlights
+
+- Integrate Gorilla search once API access is available.
+- Expand `web-search.js` beyond maritime/weather shortcuts to real web queries.
+- Add automated regression tests for the generator output and live MCP lifecycle.
+- Revisit workflow orchestration once the generation pipeline is battle-tested.
 
 ---
 
@@ -66,6 +78,7 @@ npx wtf-mcp-manager init                # Initialize project
 npx wtf-mcp-manager list                # Show all MCPs
 npx wtf-mcp-manager enable supabase     # Enable specific MCP
 npx wtf-mcp-manager detect              # Auto-detect MCPs
+npx wtf-mcp-manager ingest --provider memory  # Embed metadata into a vector DB
 npx wtf-mcp-manager doctor              # Diagnose issues
 ```
 
@@ -83,6 +96,85 @@ npx wtf-mcp-manager doctor              # Diagnose issues
 ```
 
 **Then just talk to Claude naturally and it will manage everything!**
+
+---
+
+## 🌐 Router HTTP Service & Docker Deployment
+
+The WTF router now ships with an optional HTTP interface that mirrors the retrieval capabilities of the in-process MCP server. This makes it easy to host the router next to a vector database and let both the CLI and the MCP instance talk to it over HTTP when available.
+
+### API Overview
+
+- **Endpoint:** `POST /router/query`
+- **Request body:**
+  ```json
+  {
+    "query": "database tools",
+    "limit": 8
+  }
+  ```
+- **Response:**
+  ```json
+  {
+    "results": [
+      { "id": "supabase", "name": "Supabase", "score": 12 },
+      { "id": "postgresql", "name": "PostgreSQL", "score": 9 }
+    ]
+  }
+  ```
+
+You can test the endpoint with curl once the service is running:
+
+```bash
+curl -X POST http://localhost:3000/router/query \
+  -H 'content-type: application/json' \
+  -d '{"query":"database", "limit":5}'
+```
+
+### CLI & MCP Integration
+
+- Set `WTF_MCP_ROUTER_URL` (or `ROUTER_HTTP_URL`) to the base URL of the HTTP service to make the CLI and MCP server prefer HTTP over stdio.
+- Fallback is automatic—if the HTTP call fails, the CLI/server falls back to the local registry search logic.
+- A new CLI helper command makes manual queries easy:
+
+  ```bash
+  npx wtf-mcp-manager router "vector database"
+  ```
+
+### Docker & Compose
+
+- `Dockerfile` runs the Node router service (`lib/server/http.js`).
+- `docker-compose.yml` launches both the router and a Qdrant vector database:
+
+  ```bash
+  docker compose up --build
+  ```
+
+- The router service exposes port `3000` by default and depends on `vector-db` (Qdrant) listening on `6333`.
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WTF_MCP_ROUTER_URL` | _unset_ | Preferred HTTP endpoint for CLI/MCP clients. |
+| `ROUTER_HTTP_PORT` | `3000` | HTTP listen port for the router service. |
+| `ROUTER_HTTP_HOST` | `0.0.0.0` | Bind address for the HTTP server. |
+| `ROUTER_HTTP_CORS` | `*` | Comma-separated allow list for CORS responses. |
+| `ROUTER_VECTOR_URL` | `http://vector-db:6333` | Base URL for the vector database. |
+| `ROUTER_VECTOR_COLLECTION` | `wtf-mcp-router` | Qdrant collection name that stores router documents. |
+| `ROUTER_TOP_K` | `10` | Default number of results returned for queries. |
+| `ROUTER_HTTP_TIMEOUT` | `10000` | Timeout (ms) for vector DB requests. |
+| `ROUTER_EMBEDDINGS_URL` | _unset_ | Optional external embeddings endpoint for vector search. |
+| `ROUTER_EMBEDDINGS_API_KEY` | _unset_ | API key forwarded to the embeddings endpoint. |
+| `ROUTER_EMBEDDINGS_MODEL` | _unset_ | Model hint for the embeddings endpoint. |
+
+### Security Considerations
+
+- Restrict the router and vector database to private networks or VPNs; do not expose them directly to the public internet.
+- Configure `ROUTER_HTTP_CORS` and firewalls to allow only trusted origins and IP ranges.
+- Store secrets (embedding API keys, etc.) in `.env` or external secret managers—never commit them to git.
+- Enable TLS/HTTPS via a reverse proxy when the router is accessed across networks.
+- Apply access control to the vector database (Qdrant) and regularly rotate any API keys used for embeddings.
 
 ---
 
@@ -258,11 +350,38 @@ npx wtf-mcp-manager init                # Initialize project
 npx wtf-mcp-manager list                # Show all MCPs
 npx wtf-mcp-manager enable supabase     # Enable specific MCP
 npx wtf-mcp-manager detect              # Auto-detect MCPs
+npx wtf-mcp-manager ingest              # Ingest metadata into your vector store
 npx wtf-mcp-manager doctor              # Diagnose issues
 
 # Interactive mode
 npx wtf-mcp-manager
 ```
+
+### Vector Store Ingestion & Embeddings
+
+Use the `ingest` command to collect all MCP metadata from the built-in registry, discovery modules, and tool definitions, then persist it to your vector database for semantic search.
+
+```bash
+# Dry run – view a preview without writing
+npx wtf-mcp-manager ingest --dry-run
+
+# Full ingestion (requires environment variables below)
+npx wtf-mcp-manager ingest
+```
+
+Set the required credentials in `.claude/.env` (loaded automatically when the CLI runs):
+
+| Variable | Description |
+|----------|-------------|
+| `VECTOR_DB_PROVIDER` | Vector database provider (currently `chroma` is supported). |
+| `VECTOR_DB_URL` | Base URL for the vector database REST API. |
+| `VECTOR_DB_COLLECTION` | Collection/table name for MCP metadata (defaults to `wtf-mcps`). |
+| `VECTOR_DB_API_KEY` | API key or bearer token for the vector database (optional). |
+| `EMBEDDING_PROVIDER` | Embedding provider identifier (supports `anthropic`). |
+| `ANTHROPIC_API_KEY` | API key used to request embeddings from Anthropic. |
+| `ANTHROPIC_EMBEDDING_MODEL` | Override the Anthropic embedding model (defaults to `text-embedding-001`). |
+
+> 💡 These settings live beside your project configuration in `.claude/.env`, keeping secrets out of version control while letting the CLI bootstrap new MCP metadata automatically.
 
 ### Integration with Claude
 ```bash
@@ -272,6 +391,80 @@ npx wtf-mcp-manager serve
 # Add to Claude Desktop config
 # Then control MCPs directly in Claude!
 ```
+
+### Semantic Router & Retrieval
+
+The router module keeps a normalized catalogue of MCP metadata, embeds it, and serves fast semantic retrieval for Claude. Run the dedicated CLI to keep the vector store fresh:
+
+```bash
+# Normalize metadata from the registry, local configs, and custom files
+npx wtf-mcp-router ingest
+
+# Debug a query against the vector DB
+npx wtf-mcp-router retrieve "I need a database API"
+```
+
+#### Configuration cheat sheet
+
+| Variable | Description |
+| --- | --- |
+| `ROUTER_VECTOR_STORE` | `memory` (default), `supabase`, `qdrant`, or `chroma`. |
+| `ROUTER_VECTOR_STORE_URL` / `ROUTER_VECTOR_STORE_API_KEY` | Connection details for remote stores. |
+| `ROUTER_SUPABASE_TABLE` / `ROUTER_SUPABASE_SCHEMA` / `ROUTER_SUPABASE_MATCH_FN` | Supabase table + RPC function for pgvector search. |
+| `ROUTER_QDRANT_COLLECTION` / `ROUTER_QDRANT_TIMEOUT_MS` | Target collection + timeout. |
+| `ROUTER_CHROMA_COLLECTION` / `ROUTER_CHROMA_TENANT` / `ROUTER_CHROMA_DATABASE` | Chroma namespace configuration. |
+| `ROUTER_EMBEDDING_PROVIDER` | `openai`, `anthropic`, or `local` (hash-based fallback). |
+| `ROUTER_EMBEDDING_MODEL` / `ROUTER_EMBEDDING_ENDPOINT` | Override provider defaults. |
+| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | Credentials for embedding providers. |
+| `ROUTER_REMOTE_REGISTRIES` | Comma-separated registry URLs to ingest (JSON/YAML). |
+| `ROUTER_ADDITIONAL_GLOBS` | Glob patterns for local JSON/YAML MCP definitions. |
+| `ROUTER_DYNAMIC_CONFIG_DIR` | Relative directory that contains generated MCP manifests (`.claude` by default). |
+| `ROUTER_TOP_K` | Default number of matches returned by the retriever. |
+| `ROUTER_CACHE_TTL_MS` | Cache lifetime for repeated lookups. |
+| `ROUTER_MEMORY_STORE_PATH` | On-disk cache file when using the built-in memory vector store. |
+| `ROUTER_AUTO_INGEST` | Set to `true` to ingest automatically when the MCP server boots. |
+| `ROUTER_OBSERVABILITY_ENABLED` / `ROUTER_OBSERVABILITY_EMITTER` | Emit router latency + count metrics (defaults to console JSON). |
+
+> ⚠️ Vector store clients are optional dependencies. Install the ones you need, e.g. `npm install openai`, `npm install @supabase/supabase-js`, `npm install @qdrant/js-client-rest`, or `npm install chromadb`.
+
+#### Local Docker Compose profiles
+
+Quick-start infrastructure for local retrieval experiments:
+
+```yaml
+# docker-compose.router.yml
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+  chroma:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+```
+
+Point the router at one of the services:
+
+```bash
+ROUTER_VECTOR_STORE=qdrant \
+ROUTER_VECTOR_STORE_URL=http://localhost:6333 \
+ROUTER_QDRANT_COLLECTION=mcp-router \
+npx wtf-mcp-router ingest
+```
+
+#### Observability hooks
+
+Enable lightweight JSON metrics during ingestion and retrieval by setting:
+
+```bash
+export ROUTER_OBSERVABILITY_ENABLED=true
+export ROUTER_OBSERVABILITY_EMITTER=console
+```
+
+The MCP server will log per-query latency and hit counts, which can be piped to your tracing or token-tracking pipeline.
 
 ---
 
@@ -308,6 +501,64 @@ Common issues:
 
 ---
 
+## 🧱 Deployment & Operations
+
+### Docker Compose quickstart
+
+```yaml
+services:
+  wtf-mcp-manager:
+    image: node:20
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - ./.claude:/app/.claude
+    command: ["npx", "wtf-mcp-manager", "serve"]
+    environment:
+      # Claude / Anthropic credentials for conversational control
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # Optional: override or supplement registry metadata
+      WTF_MCP_REGISTRY_OVERRIDES: /app/.claude/registry-overrides.json
+    ports:
+      - "8722:8722"
+```
+
+1. Copy the snippet into `docker-compose.yml` inside your project.
+2. Run `docker compose up --build` to boot the server with persistent `.claude` state mounted from the host.
+3. Update `.claude/mcp-config.json` or use the CLI from inside the container to enable/disable MCPs per environment.【F:lib/manager.js†L10-L118】【F:bin/wtf-mcp.js†L33-L121】
+
+### Environment variables at a glance
+
+| MCP | Required env vars | Source |
+|-----|-------------------|--------|
+| Supabase | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | `.claude/.env`, secret manager | 
+| Brave Search | `BRAVE_API_KEY` | `.claude/.env`, secret manager |
+| Firecrawl | `FIRECRAWL_API_KEY` | `.claude/.env`, secret manager |
+| GitHub | `GITHUB_TOKEN` | `.claude/.env`, secret manager |
+| Vercel | `VERCEL_TOKEN` | `.claude/.env`, secret manager |
+| AWS | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | `.claude/.env`, secret manager |
+
+The registry also includes Docker, Playwright, Context7, Semgrep, and other MCPs that do not require secrets by default.【F:lib/registry.js†L5-L121】 Keep secrets out of version control—`wtf-mcp-manager` writes them to `.claude/.env` when you supply values through the CLI prompts.【F:lib/manager.js†L128-L213】【F:bin/wtf-mcp.js†L90-L137】
+
+### Extend metadata without touching code
+
+1. Create `.claude/registry-overrides.json` or point `WTF_MCP_REGISTRY_OVERRIDES` at a JSON file containing new MCP definitions.
+2. Each JSON entry should include the MCP id and its metadata (name, command, args, required env vars, categories).
+3. Restart the server or rerun `wtf-mcp-manager list`—overrides are merged on load, enabling `enable`/`disable` workflows for the new MCPs immediately.【F:lib/registry.js†L1-L121】【F:bin/wtf-mcp.js†L72-L158】
+
+See [docs/router.md](docs/router.md) for architecture diagrams detailing how overrides participate in ingestion and routing.
+
+### Maintenance playbook
+
+| Task | When | How |
+|------|------|-----|
+| Re-index registry metadata | After registry refreshes or override edits | Run `wtf-mcp-manager fetch --force` then rebuild your embeddings or rerun the vectorizer job.【F:lib/mcp-server.js†L120-L188】 |
+| Refresh auto-detection signals | When project structure changes | Execute `wtf-mcp-manager detect` to rescan the repository for MCP hints.【F:bin/wtf-mcp.js†L158-L206】 |
+| Monitor relevance metrics | Continuous | Track match scores returned by your vector store and log how often suggested MCPs are accepted; alert when similarity or acceptance rate dips. |
+| Tune performance | When latency increases | Adjust caching windows (30-minute TTL) and prewarm embeddings for frequently used MCP families.【F:lib/mcp-server.js†L24-L33】【F:docs/router.md†L17-L70】 |
+
+---
+
 ## 🚀 Installation & Publishing
 
 ### Use Directly
@@ -329,6 +580,36 @@ npm install
 npm test
 ```
 
+#### Containerised local stack
+
+1. Copy `.env.example` to `.env` and update any variables you need.
+2. (Optional) If your Qdrant instance requires an API key, save it to `secrets/vector_db_api_key` (this path is mounted as a Docker secret).
+3. Start the router and vector database:
+
+   ```bash
+   npm run compose:up
+   ```
+
+4. Tail logs from the router service:
+
+   ```bash
+   npm run compose:logs
+   ```
+
+5. Run the smoke test to verify that the router can talk to the vector database:
+
+   ```bash
+   npm run compose:test
+   ```
+
+6. Tear the stack down when you're done:
+
+   ```bash
+   npm run compose:down
+   ```
+
+The router container uses the `scripts/healthcheck.js` probe both for Docker health checks and the smoke test. It will fail fast if `VECTOR_DB_URL` is unreachable or the API key secret is misconfigured.
+
 ---
 
 ## 🎯 The Future is Conversational
@@ -338,6 +619,10 @@ npm test
 **WTF-MCP-Manager** is the first step toward truly conversational development environments. Your IDE understands what you're building and configures itself.
 
 ---
+
+## 🧭 Architecture & Ops Docs
+
+- [Router, Retriever & Vector Store Overview](docs/router.md) – Deep dive into query routing, vector search flow, Docker Compose deployment, and maintenance runbooks.
 
 ## 📄 License & Credits
 
