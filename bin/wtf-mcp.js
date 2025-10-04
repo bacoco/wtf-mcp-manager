@@ -9,12 +9,15 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
+import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs/promises';
+import { existsSync } from 'fs';
 import { MCPManager } from '../lib/manager.js';
 import { MCPRegistry } from '../lib/registry.js';
 import { AutoDetector } from '../lib/detector.js';
+import { RouterClient } from '../lib/router/client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -22,6 +25,56 @@ const packageJson = JSON.parse(await fs.readFile(join(__dirname, '..', 'package.
 
 const program = new Command();
 const manager = new MCPManager();
+const routerClient = new RouterClient();
+
+const normalizeRouterEndpoint = (url) => {
+  if (!url) return null;
+  return url.endsWith('/') ? url.slice(0, -1) : url;
+};
+
+const getRouterEndpoint = () => {
+  return normalizeRouterEndpoint(
+    process.env.WTF_MCP_ROUTER_URL ||
+    process.env.ROUTER_HTTP_URL ||
+    process.env.ROUTER_URL ||
+    null
+  );
+};
+
+async function queryRouter(query, limit = 5) {
+  const endpoint = getRouterEndpoint();
+
+  if (endpoint) {
+    try {
+      const response = await fetch(`${endpoint}/router/query`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ query, limit })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data.results) && data.results.length > 0) {
+          return data.results.slice(0, limit);
+        }
+      } else {
+        console.warn(chalk.yellow(`Router endpoint responded with status ${response.status}`));
+      }
+    } catch (error) {
+      console.warn(chalk.yellow(`Router HTTP query failed: ${error.message || error}`));
+    }
+  }
+
+  const { RouterRetriever } = await import('../lib/server/retriever.js');
+  const fallbackRetriever = new RouterRetriever({
+    registry: new MCPRegistry(),
+    vectorUrl: null,
+    embedUrl: null,
+    fallback: null
+  });
+
+  return fallbackRetriever.registryFallback(query, limit);
+}
 
 // Banner
 function showBanner() {
@@ -118,6 +171,54 @@ program
     console.log(chalk.yellow('\n✅ = Enabled | ❌ = WTF not enabled yet\n'));
   });
 
+// Search command (uses router when available)
+program
+  .command('search <query>')
+  .description('Search for MCPs that match your query')
+  .option('-k, --top <number>', 'Number of matches to display', '8')
+  .action(async (query, options) => {
+    const top = Math.max(1, parseInt(options.top, 10) || 8);
+
+    let results = [];
+    let usedRouter = false;
+
+    if (routerClient.isConfigured) {
+      try {
+        results = await routerClient.query({ query, topK: top }) || [];
+        usedRouter = Array.isArray(results) && results.length > 0;
+      } catch (error) {
+        console.log(chalk.yellow(`⚠️  Router search failed (${error.message}). Falling back to local registry.`));
+        results = [];
+      }
+    }
+
+    if (!results || results.length === 0) {
+      const fallbackRegistry = new MCPRegistry();
+      results = fallbackRegistry.search(query).slice(0, top);
+    }
+
+    if (results.length === 0) {
+      console.log(chalk.yellow(`No MCPs found for "${query}"`));
+      return;
+    }
+
+    console.log(chalk.cyan(`\n🔍 Results for "${query}":${usedRouter ? ' (via router)' : ''}\n`));
+    results.forEach((mcp, index) => {
+      const name = mcp.name || mcp.id;
+      const description = mcp.description || '';
+      const score = typeof mcp.score === 'number' ? ` (score: ${mcp.score.toFixed(3)})` : '';
+      console.log(`${String(index + 1).padStart(2, '0')}. ${chalk.green(name)}${score}`);
+      if (description) {
+        console.log(chalk.gray(`    ${description}`));
+      }
+      if (mcp.categories && mcp.categories.length) {
+        console.log(chalk.gray(`    Categories: ${mcp.categories.join(', ')}`));
+      }
+    });
+
+    console.log('');
+  });
+
 // Enable command
 program
   .command('enable <mcp>')
@@ -141,6 +242,24 @@ program
       
       const registry = new MCPRegistry();
       const mcpInfo = registry.get(mcpId);
+
+      if (!mcpInfo) {
+        spinner.fail(chalk.red(`Unknown MCP: ${mcpId}`));
+        const suggestions = await queryRouter(mcpId, 5);
+
+        if (suggestions.length > 0) {
+          console.log(chalk.yellow('\nDid you mean:'));
+          suggestions.forEach((suggestion, index) => {
+            const label = suggestion.name || suggestion.id;
+            const description = suggestion.description ? ` - ${suggestion.description}` : '';
+            console.log(chalk.gray(`  ${index + 1}. ${label}${description}`));
+          });
+        } else {
+          console.log(chalk.gray('\nNo similar MCPs found in local registry.'));
+        }
+
+        process.exit(1);
+      }
       
       if (mcpInfo && mcpInfo.requiredEnv) {
         const missing = mcpInfo.requiredEnv.filter(key => !envVars[key] && !process.env[key]);
@@ -164,9 +283,46 @@ program
       
       await manager.enable(mcpId, envVars);
       spinner.succeed(chalk.green(`✅ ${mcpId} enabled! WTF that was easy!`));
-      
+
     } catch (error) {
       spinner.fail(chalk.red('WTF! Failed: ' + error.message));
+      process.exit(1);
+    }
+  });
+
+// Router command
+program
+  .command('router <query>')
+  .description('Query the WTF router for recommended MCPs')
+  .option('-k, --top <number>', 'Number of results to return', '5')
+  .action(async (query, options) => {
+    const limit = Number.parseInt(options.top, 10) || 5;
+    const spinner = ora(`Querying router for "${query}"...`).start();
+
+    try {
+      const results = await queryRouter(query, limit);
+      spinner.stop();
+
+      if (!results || results.length === 0) {
+        console.log(chalk.yellow('\nNo router recommendations found.'));
+        return;
+      }
+
+      console.log(chalk.cyan(`\n🔎 Router recommendations for "${query}":\n`));
+      results.forEach((result, index) => {
+        const label = result.name || result.id;
+        const score = typeof result.score === 'number' ? ` (score: ${result.score.toFixed(2)})` : '';
+        console.log(`${index + 1}. ${chalk.green(label)}${score}`);
+        if (result.description) {
+          console.log(chalk.gray(`   ${result.description}`));
+        }
+        if (Array.isArray(result.categories) && result.categories.length > 0) {
+          console.log(chalk.gray(`   Categories: ${result.categories.join(', ')}`));
+        }
+      });
+    } catch (error) {
+      spinner.fail(chalk.red('Failed to query router'));
+      console.error(chalk.red(error.message || error));
       process.exit(1);
     }
   });
@@ -226,6 +382,48 @@ program
         await manager.enable(mcp.id);
       }
       console.log(chalk.green('\n✅ All MCPs enabled! WTF, that was quick!'));
+    }
+  });
+
+// Vector store ingestion command
+program
+  .command('ingest')
+  .description('Ingest MCP metadata into the configured vector store')
+  .option('-p, --provider <provider>', 'Vector database provider (memory, chroma, qdrant, supabase)')
+  .option('-u, --url <url>', 'Vector database base URL override')
+  .option('-c, --collection <name>', 'Vector database collection or namespace')
+  .option('-t, --table <name>', 'Supabase table name override')
+  .option('--embedding-provider <provider>', 'Embedding provider (mock, openai)')
+  .option('--embedding-model <model>', 'Embedding model identifier override')
+  .option('--embedding-endpoint <url>', 'Embedding HTTP endpoint override')
+  .option('--env <path>', 'Path to .env file with credentials', join(process.cwd(), '.claude', '.env'))
+  .action(async (options) => {
+    showBanner();
+    const spinner = ora('Ingesting MCP metadata into vector store...').start();
+
+    try {
+      const ingestor = new VectorStoreIngestor({
+        provider: options.provider,
+        vectorProvider: options.provider,
+        url: options.url,
+        collection: options.collection,
+        table: options.table,
+        embeddingProvider: options.embeddingProvider,
+        embeddingModel: options.embeddingModel,
+        embeddingEndpoint: options.embeddingEndpoint,
+        envPath: options.env
+      });
+
+      const result = await ingestor.ingestAll();
+      spinner.succeed(chalk.green(`✅ Ingested ${result.count} documents into ${result.provider} vector store`));
+
+      if (result.ids?.length) {
+        const sampleIds = result.ids.slice(0, 5).join(', ');
+        console.log(chalk.gray(`Sample document IDs: ${sampleIds}${result.ids.length > 5 ? ', ...' : ''}`));
+      }
+    } catch (error) {
+      spinner.fail(chalk.red(`Failed to ingest MCP metadata: ${error.message}`));
+      process.exit(1);
     }
   });
 
@@ -304,9 +502,9 @@ program
   .description('WTF is wrong? (Check configuration)')
   .action(async () => {
     console.log(chalk.cyan('\n🏥 Running diagnostics... WTF is going on?\n'));
-    
+
     const issues = await manager.diagnose();
-    
+
     if (issues.length === 0) {
       console.log(chalk.green('✅ Everything is fucking perfect!'));
     } else {
@@ -317,6 +515,45 @@ program
           console.log(chalk.gray(`    Fix: ${issue.fix}`));
         }
       });
+    }
+  });
+
+program
+  .command('ingest')
+  .description('Aggregate MCP metadata and push it into the configured vector store')
+  .option('--dry-run', 'Collect metadata and show a preview without writing to the vector store', false)
+  .action(async (options) => {
+    showBanner();
+    const spinner = ora('Collecting MCP metadata...').start();
+    let ingestSpinner;
+
+    try {
+      const records = await collectMCPMetadata();
+      spinner.succeed(chalk.green(`Collected ${records.length} MCP metadata records.`));
+
+      if (options.dryRun) {
+        console.log(chalk.cyan('\n🧪 Dry run preview (first 3 records):\n'));
+        records.slice(0, 3).forEach(record => {
+          console.log(chalk.yellow(`• ${record.name}`));
+          console.log(chalk.gray(`  Source: ${record.source}`));
+          if (record.description) {
+            console.log(chalk.gray(`  Description: ${record.description}`));
+          }
+          console.log('');
+        });
+        return;
+      }
+
+      ingestSpinner = ora('Writing embeddings to the vector store...').start();
+      const result = await ingestToVectorStore();
+      ingestSpinner.succeed(chalk.green(`Ingested ${result.count} records into ${result.provider} (${result.collection}).`));
+    } catch (error) {
+      if (ingestSpinner) {
+        ingestSpinner.fail(chalk.red(`Failed to write to vector store: ${error.message}`));
+      } else {
+        spinner.fail(chalk.red(`Failed to ingest metadata: ${error.message}`));
+      }
+      process.exit(1);
     }
   });
 

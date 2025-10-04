@@ -3,18 +3,24 @@
   "version": "1.1.0",
   "description": "🎯 Smart MCP Manager for Claude - Enable/disable MCPs per project",
   "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js"
+  },
   "type": "module",
   "bin": {
     "wtf-mcp-manager": "./bin/wtf-mcp.js",
     "wtf-mcp": "./bin/wtf-mcp.js",
-    "claude-mcp": "./bin/wtf-mcp.js"
+    "claude-mcp": "./bin/wtf-mcp.js",
+    "wtf-mcp-router": "./bin/wtf-mcp-router.js"
   },
   "scripts": {
-    "test": "node test/test-mcp-server.js",
+    "test": "node --test test/*.test.js && node test/test-mcp-server.js",
     "lint": "eslint lib/",
     "prepare": "npm run build",
     "build": "echo 'Build complete'",
-    "postinstall": "node scripts/postinstall.js || true"
+    "postinstall": "node scripts/postinstall.js || true",
+    "router": "node lib/server/http.js",
+    "profile:router": "node --prof lib/server/http.js"
   },
   "keywords": [
     "claude",
