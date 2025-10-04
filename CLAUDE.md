@@ -71,6 +71,44 @@ Main commands accessible via `npx wtf-mcp-manager` or aliases `wtf-mcp`, `claude
 - `global <list|disable> [mcp]` - Manage global Claude MCPs
 - `doctor` - Diagnose configuration issues
 - `interactive` - Interactive mode with menu
+- `wtf-mcp-router ingest` - Normalize metadata and upsert embeddings into the router vector store
+- `wtf-mcp-router retrieve <query>` - Debug semantic routing responses locally
+
+### Router configuration quick reference
+
+- **Vector store selection**: `ROUTER_VECTOR_STORE` supports `memory` (default), `supabase`, `qdrant`, and `chroma`. Provide connection parameters via `ROUTER_VECTOR_STORE_URL` / `ROUTER_VECTOR_STORE_API_KEY`, or Supabase/Qdrant/Chroma specific variables (`ROUTER_SUPABASE_TABLE`, `ROUTER_QDRANT_COLLECTION`, `ROUTER_CHROMA_COLLECTION`, etc.).
+- **Embeddings**: Set `ROUTER_EMBEDDING_PROVIDER` to `openai`, `anthropic`, or `local`. Supply credentials (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) and optional overrides (`ROUTER_EMBEDDING_MODEL`, `ROUTER_EMBEDDING_ENDPOINT`).
+- **Metadata sources**: Add remote registries with `ROUTER_REMOTE_REGISTRIES`, load custom JSON/YAML via `ROUTER_ADDITIONAL_GLOBS`, and point at generated MCP manifests with `ROUTER_DYNAMIC_CONFIG_DIR`.
+- **Performance**: Tweak `ROUTER_TOP_K`, `ROUTER_CACHE_TTL_MS`, `ROUTER_MEMORY_STORE_PATH`, and enable auto-ingestion on boot using `ROUTER_AUTO_INGEST=true`.
+- **Observability**: Enable router telemetry with `ROUTER_OBSERVABILITY_ENABLED=true` (defaults to console JSON payloads, configurable via `ROUTER_OBSERVABILITY_EMITTER`).
+
+> Optional packages: install the clients you need per backend (`npm install openai`, `npm install @supabase/supabase-js`, `npm install @qdrant/js-client-rest`, `npm install chromadb`).
+
+### Local Docker Compose profiles
+
+For local experimentation, spin up vector stores quickly:
+
+```yaml
+# docker-compose.router.yml
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+  chroma:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+```
+
+Point the router at the desired service:
+
+```bash
+ROUTER_VECTOR_STORE=qdrant \
+ROUTER_VECTOR_STORE_URL=http://localhost:6333 \
+ROUTER_QDRANT_COLLECTION=mcp-router \
+npx wtf-mcp-router ingest
+```
 
 ## MCP Server Protocol
 
