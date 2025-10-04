@@ -17,7 +17,11 @@
     "lint": "eslint lib/",
     "prepare": "npm run build",
     "build": "echo 'Build complete'",
-    "postinstall": "node scripts/postinstall.js || true"
+    "postinstall": "node scripts/postinstall.js || true",
+    "dev:router": "node lib/mcp-server.js",
+    "compose:up": "docker compose up --build",
+    "compose:down": "docker compose down",
+    "smoke:router": "node scripts/docker-smoke-test.js"
   },
   "keywords": [
     "claude",
