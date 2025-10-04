@@ -13,7 +13,7 @@
     "claude-mcp": "./bin/wtf-mcp.js"
   },
   "scripts": {
-    "test": "node test/test-mcp-server.js",
+    "test": "node test/test-retriever.js && node test/test-mcp-server.js",
     "lint": "eslint lib/",
     "prepare": "npm run build",
     "build": "echo 'Build complete'",

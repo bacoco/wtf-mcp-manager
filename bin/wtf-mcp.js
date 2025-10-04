@@ -229,6 +229,76 @@ program
     }
   });
 
+// Route tools command
+program
+  .command('route-tools <tools...>')
+  .description('Format retriever results into tool metadata for context injection')
+  .option('-k, --top <number>', 'Maximum number of tools to include')
+  .action(async (tools, options) => {
+    showBanner();
+
+    const spinner = ora('Routing tool metadata...').start();
+
+    try {
+      const { WTFMCPManagerServer } = await import('../lib/mcp-server.js');
+      const server = new WTFMCPManagerServer();
+
+      const limit = options.top !== undefined ? parseInt(options.top, 10) : undefined;
+
+      if (options.top !== undefined && Number.isNaN(limit)) {
+        spinner.fail(chalk.red('Top must be a number'));
+        process.exit(1);
+      }
+
+      const retrieverResults = tools.map((tool, index) => ({
+        id: tool,
+        score: Math.max(tools.length - index, 1)
+      }));
+
+      const payload = { results: retrieverResults };
+      if (limit !== undefined) {
+        payload.limit = limit;
+      }
+
+      const routed = await server.handleRequest('route_tools', payload);
+
+      if (routed.error) {
+        throw new Error(routed.error);
+      }
+
+      spinner.succeed(chalk.green('Tool metadata ready!'));
+
+      console.log(chalk.cyan('\n🔧 Selected tools:\n'));
+      if (routed.tools.length === 0) {
+        console.log(chalk.yellow('No matching tools found for the provided results.'));
+      } else {
+        routed.tools.forEach((tool, idx) => {
+          console.log(chalk.green(`${idx + 1}. ${tool.name}`));
+          if (tool.description) {
+            console.log(chalk.gray(`   ${tool.description}`));
+          }
+        });
+      }
+
+      if (routed.examples.length > 0) {
+        console.log(chalk.cyan('\n📘 Relevant examples:\n'));
+        routed.examples.forEach(example => {
+          console.log(chalk.white(`• ${example.user}`));
+          if (example.assistant) {
+            console.log(chalk.gray(`  ${example.assistant}`));
+          }
+        });
+      }
+
+      if (routed.meta?.missing?.length) {
+        console.log(chalk.yellow(`\n⚠️  Missing tool definitions: ${routed.meta.missing.join(', ')}`));
+      }
+    } catch (error) {
+      spinner.fail(chalk.red('Failed to route tools: ' + error.message));
+      process.exit(1);
+    }
+  });
+
 // Serve command (Meta-MCP)
 program
   .command('serve')
