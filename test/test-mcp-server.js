@@ -91,6 +91,21 @@ async function runTests() {
     console.log(chalk.red('❌ MCP listing failed:'), error.message);
   }
 
+  // Test 7b: List dynamic MCPs
+  console.log(chalk.yellow('\n7b. Testing dynamic MCP listing...'));
+  try {
+    const { active, available, total } = await server.handleRequest('list_dynamic_mcps');
+    if (!Array.isArray(active) || !Array.isArray(available) || typeof total !== 'number') {
+      throw new Error('Unexpected response structure');
+    }
+    console.log(chalk.green('✅ Dynamic MCP listing:'));
+    console.log(`   Active: ${active.length}`);
+    console.log(`   Available: ${available.length}`);
+    console.log(`   Total: ${total}`);
+  } catch (error) {
+    console.log(chalk.red('❌ Dynamic MCP listing failed:'), error.message);
+  }
+
   // Test 7: Diagnostics
   console.log(chalk.yellow('\n7. Testing diagnostics...'));
   try {
