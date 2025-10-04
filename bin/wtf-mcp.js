@@ -9,12 +9,15 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
+import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs/promises';
+import { existsSync } from 'fs';
 import { MCPManager } from '../lib/manager.js';
 import { MCPRegistry } from '../lib/registry.js';
 import { AutoDetector } from '../lib/detector.js';
+import { collectMCPMetadata, ingestToVectorStore } from '../lib/router/vector-store.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -22,6 +25,15 @@ const packageJson = JSON.parse(await fs.readFile(join(__dirname, '..', 'package.
 
 const program = new Command();
 const manager = new MCPManager();
+
+function loadClaudeEnv() {
+  const claudeEnvPath = join(process.cwd(), '.claude', '.env');
+  if (existsSync(claudeEnvPath)) {
+    dotenv.config({ path: claudeEnvPath });
+  }
+}
+
+loadClaudeEnv();
 
 // Banner
 function showBanner() {
@@ -229,6 +241,76 @@ program
     }
   });
 
+// Route tools command
+program
+  .command('route-tools <tools...>')
+  .description('Format retriever results into tool metadata for context injection')
+  .option('-k, --top <number>', 'Maximum number of tools to include')
+  .action(async (tools, options) => {
+    showBanner();
+
+    const spinner = ora('Routing tool metadata...').start();
+
+    try {
+      const { WTFMCPManagerServer } = await import('../lib/mcp-server.js');
+      const server = new WTFMCPManagerServer();
+
+      const limit = options.top !== undefined ? parseInt(options.top, 10) : undefined;
+
+      if (options.top !== undefined && Number.isNaN(limit)) {
+        spinner.fail(chalk.red('Top must be a number'));
+        process.exit(1);
+      }
+
+      const retrieverResults = tools.map((tool, index) => ({
+        id: tool,
+        score: Math.max(tools.length - index, 1)
+      }));
+
+      const payload = { results: retrieverResults };
+      if (limit !== undefined) {
+        payload.limit = limit;
+      }
+
+      const routed = await server.handleRequest('route_tools', payload);
+
+      if (routed.error) {
+        throw new Error(routed.error);
+      }
+
+      spinner.succeed(chalk.green('Tool metadata ready!'));
+
+      console.log(chalk.cyan('\n🔧 Selected tools:\n'));
+      if (routed.tools.length === 0) {
+        console.log(chalk.yellow('No matching tools found for the provided results.'));
+      } else {
+        routed.tools.forEach((tool, idx) => {
+          console.log(chalk.green(`${idx + 1}. ${tool.name}`));
+          if (tool.description) {
+            console.log(chalk.gray(`   ${tool.description}`));
+          }
+        });
+      }
+
+      if (routed.examples.length > 0) {
+        console.log(chalk.cyan('\n📘 Relevant examples:\n'));
+        routed.examples.forEach(example => {
+          console.log(chalk.white(`• ${example.user}`));
+          if (example.assistant) {
+            console.log(chalk.gray(`  ${example.assistant}`));
+          }
+        });
+      }
+
+      if (routed.meta?.missing?.length) {
+        console.log(chalk.yellow(`\n⚠️  Missing tool definitions: ${routed.meta.missing.join(', ')}`));
+      }
+    } catch (error) {
+      spinner.fail(chalk.red('Failed to route tools: ' + error.message));
+      process.exit(1);
+    }
+  });
+
 // Serve command (Meta-MCP)
 program
   .command('serve')
@@ -304,9 +386,9 @@ program
   .description('WTF is wrong? (Check configuration)')
   .action(async () => {
     console.log(chalk.cyan('\n🏥 Running diagnostics... WTF is going on?\n'));
-    
+
     const issues = await manager.diagnose();
-    
+
     if (issues.length === 0) {
       console.log(chalk.green('✅ Everything is fucking perfect!'));
     } else {
@@ -317,6 +399,45 @@ program
           console.log(chalk.gray(`    Fix: ${issue.fix}`));
         }
       });
+    }
+  });
+
+program
+  .command('ingest')
+  .description('Aggregate MCP metadata and push it into the configured vector store')
+  .option('--dry-run', 'Collect metadata and show a preview without writing to the vector store', false)
+  .action(async (options) => {
+    showBanner();
+    const spinner = ora('Collecting MCP metadata...').start();
+    let ingestSpinner;
+
+    try {
+      const records = await collectMCPMetadata();
+      spinner.succeed(chalk.green(`Collected ${records.length} MCP metadata records.`));
+
+      if (options.dryRun) {
+        console.log(chalk.cyan('\n🧪 Dry run preview (first 3 records):\n'));
+        records.slice(0, 3).forEach(record => {
+          console.log(chalk.yellow(`• ${record.name}`));
+          console.log(chalk.gray(`  Source: ${record.source}`));
+          if (record.description) {
+            console.log(chalk.gray(`  Description: ${record.description}`));
+          }
+          console.log('');
+        });
+        return;
+      }
+
+      ingestSpinner = ora('Writing embeddings to the vector store...').start();
+      const result = await ingestToVectorStore();
+      ingestSpinner.succeed(chalk.green(`Ingested ${result.count} records into ${result.provider} (${result.collection}).`));
+    } catch (error) {
+      if (ingestSpinner) {
+        ingestSpinner.fail(chalk.red(`Failed to write to vector store: ${error.message}`));
+      } else {
+        spinner.fail(chalk.red(`Failed to ingest metadata: ${error.message}`));
+      }
+      process.exit(1);
     }
   });
 
