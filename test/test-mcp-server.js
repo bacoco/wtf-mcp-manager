@@ -105,6 +105,40 @@ async function runTests() {
     console.log(chalk.red('❌ Diagnostics failed:'), error.message);
   }
 
+  // Test 8: Route tools
+  console.log(chalk.yellow('\n8. Testing tool routing...'));
+  try {
+    const routed = await server.handleRequest('route_tools', {
+      results: [
+        { id: 'analyze_environment', score: 0.99 },
+        { id: 'enable_mcp', score: 0.95 },
+        { id: 'fetch_mcps', score: 0.9 }
+      ],
+      limit: 2
+    });
+
+    const toolNames = routed.tools.map(tool => tool.name);
+    const unexpected = toolNames.filter(name => !['analyze_environment', 'enable_mcp'].includes(name));
+
+    if (routed.tools.length !== 2 || unexpected.length > 0) {
+      throw new Error('Route tools did not return the expected top-k tool schemas');
+    }
+
+    const exampleTools = new Set();
+    routed.examples.forEach(example => {
+      (example.tool_calls || []).forEach(call => exampleTools.add(call.tool));
+    });
+
+    const invalidExampleTools = Array.from(exampleTools).filter(tool => !toolNames.includes(tool));
+    if (invalidExampleTools.length > 0) {
+      throw new Error(`Examples include unexpected tools: ${invalidExampleTools.join(', ')}`);
+    }
+
+    console.log(chalk.green('✅ Tool routing returns only the requested top-k tool metadata.'));
+  } catch (error) {
+    console.log(chalk.red('❌ Tool routing failed:'), error.message);
+  }
+
   console.log(chalk.cyan('\n🎯 All tests completed!\n'));
 }
 
