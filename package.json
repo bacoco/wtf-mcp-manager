@@ -19,10 +19,8 @@
     "prepare": "npm run build",
     "build": "echo 'Build complete'",
     "postinstall": "node scripts/postinstall.js || true",
-    "compose:up": "docker compose --env-file .env up --build -d",
-    "compose:down": "docker compose --env-file .env down",
-    "compose:logs": "docker compose --env-file .env logs -f router",
-    "compose:test": "docker compose --env-file .env run --rm router node scripts/healthcheck.js"
+    "router": "node lib/server/http.js",
+    "profile:router": "node --prof lib/server/http.js"
   },
   "keywords": [
     "claude",

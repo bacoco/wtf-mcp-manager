@@ -1,17 +1,15 @@
-# syntax=docker/dockerfile:1
+FROM node:20-alpine
 
-FROM node:20-alpine AS base
+WORKDIR /app
 
-WORKDIR /usr/src/app
-
-COPY package*.json ./
-RUN npm install --omit=dev
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
 COPY . .
 
 ENV NODE_ENV=production \
-    ROUTER_HTTP_PORT=3000
+    ROUTER_PORT=3333
 
-EXPOSE 3000
+EXPOSE 3333
 
 CMD ["node", "lib/server/http.js"]
