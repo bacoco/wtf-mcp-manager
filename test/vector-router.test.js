@@ -1,166 +1,92 @@
-import { test } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
+
 import { VectorRouter } from '../lib/router/vector-router.js';
 import { WTFMCPManagerServer } from '../lib/mcp-server.js';
 
-const noopLogger = { warn: () => {} };
-
-const createResponse = (body, options = {}) => {
-  const init = { status: 200, headers: { 'content-type': 'application/json' }, ...options };
-  if (body === null || body === undefined) {
-    return new Response(null, init);
-  }
-  const payload = typeof body === 'string' ? body : JSON.stringify(body);
-  return new Response(payload, init);
-};
-
-test('VectorRouter creates collection and upserts tool metadata', async () => {
-  const calls = [];
-  const fetchMock = async (url, options = {}) => {
-    calls.push({ url, options });
-
-    if (url === 'http://qdrant.local/collections/test-tools') {
-      if (!options.method) {
-        return createResponse(null, { status: 404 });
-      }
-      return createResponse({ result: 'created' });
-    }
-
-    if (url === 'http://qdrant.local/collections/test-tools/points') {
-      return createResponse({ result: { upserted: 1 } });
-    }
-
-    throw new Error(`Unexpected request: ${url}`);
-  };
-
-  const router = new VectorRouter({
-    baseUrl: 'http://qdrant.local',
-    collection: 'test-tools',
-    dimensions: 8,
-    fetch: fetchMock,
-    logger: noopLogger
-  });
-
-  const record = {
-    id: 'registry_mcp:github',
-    originalId: 'github',
+const SAMPLE_TOOLS = [
+  {
+    id: 'github',
     name: 'GitHub',
-    description: 'Code hosting and collaboration',
-    schema: { type: 'object' },
-    examples: [],
-    categories: ['development'],
-    type: 'registry_mcp',
-    source: 'builtin'
-  };
+    description: 'Repository hosting and version control for code projects',
+    categories: ['development', 'vcs'],
+    package: '@modelcontextprotocol/server-github'
+  },
+  {
+    id: 'supabase',
+    name: 'Supabase',
+    description: 'Database, authentication, and storage platform',
+    categories: ['database', 'storage'],
+    package: '@supabase/mcp-server-supabase'
+  },
+  {
+    id: 'vercel',
+    name: 'Vercel',
+    description: 'Cloud hosting platform focused on front-end deployments',
+    categories: ['deployment', 'cloud'],
+    package: '@modelcontextprotocol/server-vercel'
+  },
+  {
+    id: 'docker',
+    name: 'Docker',
+    description: 'Container orchestration and image management',
+    categories: ['containers', 'devops'],
+    package: '@modelcontextprotocol/server-docker'
+  }
+];
 
-  const success = await router.upsertTools([record]);
-  assert.strictEqual(success, true);
-  assert.strictEqual(calls.length, 3, 'should call collection get, create, and upsert');
+const SAMPLE_MAP = Object.fromEntries(SAMPLE_TOOLS.map(tool => [tool.id, tool]));
 
-  const upsertCall = calls[calls.length - 1];
-  const payload = JSON.parse(upsertCall.options.body);
-  assert.strictEqual(payload.points[0].id, record.id);
-  assert.strictEqual(payload.points[0].vector.length, 8);
+test('VectorRouter ingests metadata and retrieves similar tools', async () => {
+  const router = new VectorRouter({ dimensions: 64 });
+  const ingestResult = await router.ingestTools(SAMPLE_TOOLS, { force: true });
+
+  assert.equal(ingestResult.ingested, SAMPLE_TOOLS.length, 'all tools should be indexed');
+
+  const matches = await router.query('version control and repositories', 2);
+  assert.ok(Array.isArray(matches) && matches.length > 0, 'should return at least one match');
+  assert.equal(matches[0].id, 'github', 'GitHub should be the top match for repository queries');
 });
 
-test('VectorRouter search applies filters and returns payloads', async () => {
-  const requests = [];
-  const fetchMock = async (url, options = {}) => {
-    if (url === 'http://qdrant.local/collections/test-tools') {
-      return createResponse({ result: {} });
-    }
+test('retrieve_relevant_tools uses vector matches when available', async () => {
+  const router = new VectorRouter({ dimensions: 64 });
+  const server = new WTFMCPManagerServer({ vectorRouter: router });
+  server.availableMCPs = SAMPLE_MAP;
 
-    if (url === 'http://qdrant.local/collections/test-tools/points/search') {
-      const body = JSON.parse(options.body);
-      requests.push(body);
-      return createResponse({
-        result: [
-          {
-            id: 'registry_mcp:database',
-            score: 0.9,
-            payload: {
-              record: {
-                id: 'registry_mcp:database',
-                originalId: 'database',
-                name: 'Database MCP',
-                description: 'Manage relational databases',
-                schema: { type: 'object' },
-                examples: [],
-                categories: ['database'],
-                type: 'registry_mcp',
-                source: 'registry'
-              }
-            }
-          },
-          {
-            id: 'registry_mcp:warehouse',
-            score: 0.72,
-            payload: {
-              record: {
-                id: 'registry_mcp:warehouse',
-                originalId: 'warehouse',
-                name: 'Warehouse MCP',
-                description: 'Data warehouse tooling',
-                schema: { type: 'object' },
-                examples: [],
-                categories: ['database'],
-                type: 'registry_mcp',
-                source: 'registry'
-              }
-            }
-          }
-        ]
-      });
-    }
+  await router.ingestTools(SAMPLE_TOOLS, { force: true });
 
-    throw new Error(`Unexpected request: ${url}`);
-  };
-
-  const router = new VectorRouter({
-    baseUrl: 'http://qdrant.local',
-    collection: 'test-tools',
-    dimensions: 8,
-    fetch: fetchMock,
-    logger: noopLogger
-  });
-
-  const results = await router.query('warehouse database operations', {
-    topK: 2,
-    filter: { type: 'registry_mcp', categories: ['database'] }
-  });
-
-  assert.ok(Array.isArray(results));
-  assert.strictEqual(results.length, 2);
-  assert.strictEqual(results[0].payload.name, 'Database MCP');
-  assert.deepStrictEqual(requests[0].filter, {
-    must: [
-      { key: 'type', match: { value: 'registry_mcp' } },
-      { key: 'categories', match: { any: ['database'] } }
-    ]
-  });
+  const response = await server.retrieveRelevantTools('cloud deployment hosting', 2);
+  assert.ok(response.tools.length > 0, 'should return relevant tools');
+  assert.ok(response.tools.some(tool => tool.id === 'vercel'), 'Vercel should be suggested for deployment queries');
+  assert.notEqual(response.source, 'fallback', 'should not rely on fallback when vector router is available');
 });
 
-test('retrieveRelevantTools falls back when vector search is unavailable', async () => {
-  class UnavailableVectorRouter {
-    constructor() {
-      this.available = false;
+test('retrieve_relevant_tools gracefully falls back when vector store is unavailable', async () => {
+  class FailingRouter {
+    getSourceLabel() {
+      return 'unavailable';
     }
 
-    async upsertTools() {
+    isAvailable() {
       return false;
     }
 
+    async ensureReady() {}
+
+    async ingestTools() {
+      throw new Error('vector store offline');
+    }
+
     async query() {
-      this.available = false;
-      return null;
+      throw new Error('vector store offline');
     }
   }
 
-  const server = new WTFMCPManagerServer({ vectorRouter: new UnavailableVectorRouter() });
-  const result = await server.retrieveRelevantTools({ query: 'database services', topK: 3 });
+  const router = new FailingRouter();
+  const server = new WTFMCPManagerServer({ vectorRouter: router });
+  server.availableMCPs = SAMPLE_MAP;
 
-  assert.ok(result.fallback, 'should fall back when vector store is unavailable');
-  assert.ok(result.tools.length > 0, 'fallback should still provide results');
-  assert.strictEqual(result.vectorStoreAvailable, false);
-  assert.ok(result.tools.every(tool => tool.name && tool.description));
+  const response = await server.retrieveRelevantTools('version control and repositories', 3);
+  assert.equal(response.source, 'fallback', 'should report fallback source');
+  assert.ok(response.tools.some(tool => tool.id === 'github'), 'fallback search should still surface relevant tools');
 });
