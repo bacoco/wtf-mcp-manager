@@ -105,6 +105,40 @@ async function runTests() {
     console.log(chalk.red('❌ Diagnostics failed:'), error.message);
   }
 
+  // Test 8: Auto-create existing MCP flow
+  console.log(chalk.yellow('\n8. Testing auto-create with existing MCP...'));
+  const originalDiscoverAPIs = server.discovery.discoverAPIs;
+  const originalEnable = server.manager.enable;
+  try {
+    let enabledId = null;
+    server.discovery.discoverAPIs = async () => ([{
+      type: 'existing-mcp',
+      name: '@modelcontextprotocol/server-github',
+      package: '@modelcontextprotocol/server-github'
+    }]);
+    server.manager.enable = async (id) => {
+      enabledId = id;
+      return { id, name: 'GitHub' };
+    };
+
+    const result = await server.discoverOrCreateMCP({ query: 'github', autoCreate: true });
+
+    if (enabledId !== 'github') {
+      throw new Error(`Expected enable to be called with "github", received "${enabledId}"`);
+    }
+
+    if (!result.success) {
+      throw new Error('Expected successful response when enabling existing MCP');
+    }
+
+    console.log(chalk.green(`✅ Auto-create enabled MCP: ${enabledId}`));
+  } catch (error) {
+    console.log(chalk.red('❌ Auto-create existing MCP failed:'), error.message);
+  } finally {
+    server.discovery.discoverAPIs = originalDiscoverAPIs;
+    server.manager.enable = originalEnable;
+  }
+
   console.log(chalk.cyan('\n🎯 All tests completed!\n'));
 }
 
