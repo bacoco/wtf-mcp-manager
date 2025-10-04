@@ -9,12 +9,15 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
+import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs/promises';
+import { existsSync } from 'fs';
 import { MCPManager } from '../lib/manager.js';
 import { MCPRegistry } from '../lib/registry.js';
 import { AutoDetector } from '../lib/detector.js';
+import { VectorStoreIngestor } from '../lib/router/vector-store.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -333,6 +336,48 @@ program
     }
   });
 
+// Vector store ingestion command
+program
+  .command('ingest')
+  .description('Ingest MCP metadata into the configured vector store')
+  .option('-p, --provider <provider>', 'Vector database provider (memory, chroma, qdrant, supabase)')
+  .option('-u, --url <url>', 'Vector database base URL override')
+  .option('-c, --collection <name>', 'Vector database collection or namespace')
+  .option('-t, --table <name>', 'Supabase table name override')
+  .option('--embedding-provider <provider>', 'Embedding provider (mock, openai)')
+  .option('--embedding-model <model>', 'Embedding model identifier override')
+  .option('--embedding-endpoint <url>', 'Embedding HTTP endpoint override')
+  .option('--env <path>', 'Path to .env file with credentials', join(process.cwd(), '.claude', '.env'))
+  .action(async (options) => {
+    showBanner();
+    const spinner = ora('Ingesting MCP metadata into vector store...').start();
+
+    try {
+      const ingestor = new VectorStoreIngestor({
+        provider: options.provider,
+        vectorProvider: options.provider,
+        url: options.url,
+        collection: options.collection,
+        table: options.table,
+        embeddingProvider: options.embeddingProvider,
+        embeddingModel: options.embeddingModel,
+        embeddingEndpoint: options.embeddingEndpoint,
+        envPath: options.env
+      });
+
+      const result = await ingestor.ingestAll();
+      spinner.succeed(chalk.green(`✅ Ingested ${result.count} documents into ${result.provider} vector store`));
+
+      if (result.ids?.length) {
+        const sampleIds = result.ids.slice(0, 5).join(', ');
+        console.log(chalk.gray(`Sample document IDs: ${sampleIds}${result.ids.length > 5 ? ', ...' : ''}`));
+      }
+    } catch (error) {
+      spinner.fail(chalk.red(`Failed to ingest MCP metadata: ${error.message}`));
+      process.exit(1);
+    }
+  });
+
 // Serve command (Meta-MCP)
 program
   .command('serve')
@@ -408,9 +453,9 @@ program
   .description('WTF is wrong? (Check configuration)')
   .action(async () => {
     console.log(chalk.cyan('\n🏥 Running diagnostics... WTF is going on?\n'));
-    
+
     const issues = await manager.diagnose();
-    
+
     if (issues.length === 0) {
       console.log(chalk.green('✅ Everything is fucking perfect!'));
     } else {
@@ -421,6 +466,45 @@ program
           console.log(chalk.gray(`    Fix: ${issue.fix}`));
         }
       });
+    }
+  });
+
+program
+  .command('ingest')
+  .description('Aggregate MCP metadata and push it into the configured vector store')
+  .option('--dry-run', 'Collect metadata and show a preview without writing to the vector store', false)
+  .action(async (options) => {
+    showBanner();
+    const spinner = ora('Collecting MCP metadata...').start();
+    let ingestSpinner;
+
+    try {
+      const records = await collectMCPMetadata();
+      spinner.succeed(chalk.green(`Collected ${records.length} MCP metadata records.`));
+
+      if (options.dryRun) {
+        console.log(chalk.cyan('\n🧪 Dry run preview (first 3 records):\n'));
+        records.slice(0, 3).forEach(record => {
+          console.log(chalk.yellow(`• ${record.name}`));
+          console.log(chalk.gray(`  Source: ${record.source}`));
+          if (record.description) {
+            console.log(chalk.gray(`  Description: ${record.description}`));
+          }
+          console.log('');
+        });
+        return;
+      }
+
+      ingestSpinner = ora('Writing embeddings to the vector store...').start();
+      const result = await ingestToVectorStore();
+      ingestSpinner.succeed(chalk.green(`Ingested ${result.count} records into ${result.provider} (${result.collection}).`));
+    } catch (error) {
+      if (ingestSpinner) {
+        ingestSpinner.fail(chalk.red(`Failed to write to vector store: ${error.message}`));
+      } else {
+        spinner.fail(chalk.red(`Failed to ingest metadata: ${error.message}`));
+      }
+      process.exit(1);
     }
   });
 
