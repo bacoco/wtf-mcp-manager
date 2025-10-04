@@ -6,9 +6,10 @@
 
 import { WTFMCPManagerServer } from '../lib/mcp-server.js';
 import chalk from 'chalk';
-import { mkdtemp, rm, writeFile, mkdir } from 'fs/promises';
-import { tmpdir } from 'os';
+import fs from 'fs/promises';
+import os from 'os';
 import path from 'path';
+import assert from 'assert/strict';
 
 async function runTests() {
   console.log(chalk.cyan('\n🧪 Testing WTF-MCP-Manager Meta Server\n'));
@@ -123,38 +124,49 @@ async function runTests() {
     console.log(chalk.red('❌ Diagnostics failed:'), error.message);
   }
 
-  // Test 8: Route tools
-  console.log(chalk.yellow('\n8. Testing tool routing...'));
+  // Test 8: List Dynamic MCPs
+  console.log(chalk.yellow('\n8. Testing dynamic MCP listing...'));
+  const originalBaseDir = server.generator.baseDir;
+  const tempBaseDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wtf-dynamic-mcps-'));
+
   try {
-    const routed = await server.handleRequest('route_tools', {
-      results: [
-        { id: 'analyze_environment', score: 0.99 },
-        { id: 'enable_mcp', score: 0.95 },
-        { id: 'fetch_mcps', score: 0.9 }
-      ],
-      limit: 2
+    server.generator.baseDir = tempBaseDir;
+    server.generator.activeMCPs.set('active-mcp', {
+      config: { name: 'Active MCP', type: 'dynamic', port: 1234 },
+      process: { pid: 4321, kill: () => {} },
+      startTime: new Date(Date.now() - 1000)
     });
 
-    const toolNames = routed.tools.map(tool => tool.name);
-    const unexpected = toolNames.filter(name => !['analyze_environment', 'enable_mcp'].includes(name));
+    const availableDir = path.join(tempBaseDir, 'available-mcp');
+    await fs.mkdir(availableDir, { recursive: true });
+    await fs.writeFile(path.join(availableDir, 'config.json'), JSON.stringify({
+      id: 'available-mcp',
+      name: 'Available MCP',
+      description: 'Test dynamic MCP'
+    }));
 
-    if (routed.tools.length !== 2 || unexpected.length > 0) {
-      throw new Error('Route tools did not return the expected top-k tool schemas');
-    }
+    const result = await server.handleRequest('list_dynamic_mcps');
 
-    const exampleTools = new Set();
-    routed.examples.forEach(example => {
-      (example.tool_calls || []).forEach(call => exampleTools.add(call.tool));
-    });
+    assert.ok(Array.isArray(result.active), 'Active MCPs should be an array');
+    assert.ok(Array.isArray(result.available), 'Available MCPs should be an array');
+    assert.strictEqual(result.total, result.active.length + result.available.length, 'Total should match counts');
 
-    const invalidExampleTools = Array.from(exampleTools).filter(tool => !toolNames.includes(tool));
-    if (invalidExampleTools.length > 0) {
-      throw new Error(`Examples include unexpected tools: ${invalidExampleTools.join(', ')}`);
-    }
+    const activeIds = result.active.map(mcp => mcp.id);
+    assert.ok(activeIds.includes('active-mcp'), 'Active MCPs should include the mocked entry');
 
-    console.log(chalk.green('✅ Tool routing returns only the requested top-k tool metadata.'));
+    const availableIds = result.available.map(mcp => mcp.id);
+    assert.ok(availableIds.includes('available-mcp'), 'Available MCPs should include the mocked directory');
+
+    const availableEntry = result.available.find(mcp => mcp.id === 'available-mcp');
+    assert.strictEqual(availableEntry.status, 'stopped', 'Available MCP should be marked as stopped');
+
+    console.log(chalk.green('✅ Dynamic MCP listing passed.'));
   } catch (error) {
-    console.log(chalk.red('❌ Tool routing failed:'), error.message);
+    console.log(chalk.red('❌ Dynamic MCP listing failed:'), error.message);
+  } finally {
+    server.generator.baseDir = originalBaseDir;
+    server.generator.activeMCPs.clear();
+    await fs.rm(tempBaseDir, { recursive: true, force: true });
   }
 
   console.log(chalk.cyan('\n🎯 All tests completed!\n'));
