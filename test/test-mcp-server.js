@@ -6,6 +6,7 @@
 
 import { WTFMCPManagerServer } from '../lib/mcp-server.js';
 import chalk from 'chalk';
+import assert from 'assert/strict';
 
 async function runTests() {
   console.log(chalk.cyan('\n🧪 Testing WTF-MCP-Manager Meta Server\n'));
@@ -103,6 +104,27 @@ async function runTests() {
     });
   } catch (error) {
     console.log(chalk.red('❌ Diagnostics failed:'), error.message);
+  }
+
+  // Test 8: Route Tools Metadata
+  console.log(chalk.yellow('\n8. Testing tool routing metadata...'));
+  try {
+    const routed = await server.handleRequest('route_tools', { query: 'database', topK: 2 });
+    console.log(chalk.green('✅ Tool routing metadata:'));
+    console.log(`   Returned tools: ${routed.tools.length}`);
+    console.log(`   Total candidates seen: ${routed.totalCandidates}`);
+
+    assert(routed.tools.length <= 2, 'Route tools should respect topK limit');
+    const allowedKeys = ['name', 'description', 'inputSchema', 'examples'];
+    routed.tools.forEach(tool => {
+      Object.keys(tool).forEach(key => {
+        assert(allowedKeys.includes(key), `Unexpected key emitted in routed tool metadata: ${key}`);
+      });
+    });
+
+    assert(!('rawText' in routed), 'Route tools response should not expose raw registry text');
+  } catch (error) {
+    console.log(chalk.red('❌ Tool routing failed:'), error.message);
   }
 
   console.log(chalk.cyan('\n🎯 All tests completed!\n'));
