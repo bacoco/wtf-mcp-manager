@@ -339,6 +339,10 @@ npm test
 
 ---
 
+## 🧭 Architecture & Ops Docs
+
+- [Router, Retriever & Vector Store Overview](docs/router.md) – Deep dive into query routing, vector search flow, Docker Compose deployment, and maintenance runbooks.
+
 ## 📄 License & Credits
 
 **MIT License** - Do whatever you want!
