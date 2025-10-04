@@ -9,12 +9,15 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
+import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs/promises';
+import { existsSync } from 'fs';
 import { MCPManager } from '../lib/manager.js';
 import { MCPRegistry } from '../lib/registry.js';
 import { AutoDetector } from '../lib/detector.js';
+import { collectMCPMetadata, ingestToVectorStore } from '../lib/router/vector-store.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -22,6 +25,15 @@ const packageJson = JSON.parse(await fs.readFile(join(__dirname, '..', 'package.
 
 const program = new Command();
 const manager = new MCPManager();
+
+function loadClaudeEnv() {
+  const claudeEnvPath = join(process.cwd(), '.claude', '.env');
+  if (existsSync(claudeEnvPath)) {
+    dotenv.config({ path: claudeEnvPath });
+  }
+}
+
+loadClaudeEnv();
 
 // Banner
 function showBanner() {
@@ -374,9 +386,9 @@ program
   .description('WTF is wrong? (Check configuration)')
   .action(async () => {
     console.log(chalk.cyan('\n🏥 Running diagnostics... WTF is going on?\n'));
-    
+
     const issues = await manager.diagnose();
-    
+
     if (issues.length === 0) {
       console.log(chalk.green('✅ Everything is fucking perfect!'));
     } else {
@@ -387,6 +399,45 @@ program
           console.log(chalk.gray(`    Fix: ${issue.fix}`));
         }
       });
+    }
+  });
+
+program
+  .command('ingest')
+  .description('Aggregate MCP metadata and push it into the configured vector store')
+  .option('--dry-run', 'Collect metadata and show a preview without writing to the vector store', false)
+  .action(async (options) => {
+    showBanner();
+    const spinner = ora('Collecting MCP metadata...').start();
+    let ingestSpinner;
+
+    try {
+      const records = await collectMCPMetadata();
+      spinner.succeed(chalk.green(`Collected ${records.length} MCP metadata records.`));
+
+      if (options.dryRun) {
+        console.log(chalk.cyan('\n🧪 Dry run preview (first 3 records):\n'));
+        records.slice(0, 3).forEach(record => {
+          console.log(chalk.yellow(`• ${record.name}`));
+          console.log(chalk.gray(`  Source: ${record.source}`));
+          if (record.description) {
+            console.log(chalk.gray(`  Description: ${record.description}`));
+          }
+          console.log('');
+        });
+        return;
+      }
+
+      ingestSpinner = ora('Writing embeddings to the vector store...').start();
+      const result = await ingestToVectorStore();
+      ingestSpinner.succeed(chalk.green(`Ingested ${result.count} records into ${result.provider} (${result.collection}).`));
+    } catch (error) {
+      if (ingestSpinner) {
+        ingestSpinner.fail(chalk.red(`Failed to write to vector store: ${error.message}`));
+      } else {
+        spinner.fail(chalk.red(`Failed to ingest metadata: ${error.message}`));
+      }
+      process.exit(1);
     }
   });
 

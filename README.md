@@ -270,11 +270,38 @@ npx wtf-mcp-manager init                # Initialize project
 npx wtf-mcp-manager list                # Show all MCPs
 npx wtf-mcp-manager enable supabase     # Enable specific MCP
 npx wtf-mcp-manager detect              # Auto-detect MCPs
+npx wtf-mcp-manager ingest              # Ingest metadata into your vector store
 npx wtf-mcp-manager doctor              # Diagnose issues
 
 # Interactive mode
 npx wtf-mcp-manager
 ```
+
+### Vector Store Ingestion & Embeddings
+
+Use the `ingest` command to collect all MCP metadata from the built-in registry, discovery modules, and tool definitions, then persist it to your vector database for semantic search.
+
+```bash
+# Dry run – view a preview without writing
+npx wtf-mcp-manager ingest --dry-run
+
+# Full ingestion (requires environment variables below)
+npx wtf-mcp-manager ingest
+```
+
+Set the required credentials in `.claude/.env` (loaded automatically when the CLI runs):
+
+| Variable | Description |
+|----------|-------------|
+| `VECTOR_DB_PROVIDER` | Vector database provider (currently `chroma` is supported). |
+| `VECTOR_DB_URL` | Base URL for the vector database REST API. |
+| `VECTOR_DB_COLLECTION` | Collection/table name for MCP metadata (defaults to `wtf-mcps`). |
+| `VECTOR_DB_API_KEY` | API key or bearer token for the vector database (optional). |
+| `EMBEDDING_PROVIDER` | Embedding provider identifier (supports `anthropic`). |
+| `ANTHROPIC_API_KEY` | API key used to request embeddings from Anthropic. |
+| `ANTHROPIC_EMBEDDING_MODEL` | Override the Anthropic embedding model (defaults to `text-embedding-001`). |
+
+> 💡 These settings live beside your project configuration in `.claude/.env`, keeping secrets out of version control while letting the CLI bootstrap new MCP metadata automatically.
 
 ### Integration with Claude
 ```bash
