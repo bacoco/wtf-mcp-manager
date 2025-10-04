@@ -6,6 +6,9 @@
 
 import { WTFMCPManagerServer } from '../lib/mcp-server.js';
 import chalk from 'chalk';
+import { mkdtemp, rm, writeFile, mkdir } from 'fs/promises';
+import { tmpdir } from 'os';
+import path from 'path';
 
 async function runTests() {
   console.log(chalk.cyan('\n🧪 Testing WTF-MCP-Manager Meta Server\n'));
@@ -103,6 +106,47 @@ async function runTests() {
     });
   } catch (error) {
     console.log(chalk.red('❌ Diagnostics failed:'), error.message);
+  }
+
+  console.log(chalk.yellow('\n8. Testing dynamic MCP listing...'));
+  const tempDir = await mkdtemp(path.join(tmpdir(), 'wtf-mcp-manager-'));
+  const dynamicDir = path.join(tempDir, 'dynamic-mcps');
+
+  try {
+    server.generator.baseDir = dynamicDir;
+
+    const fakeMCPDir = path.join(dynamicDir, 'fake-mcp');
+    await mkdir(fakeMCPDir, { recursive: true });
+    await writeFile(
+      path.join(fakeMCPDir, 'config.json'),
+      JSON.stringify(
+        {
+          id: 'fake-mcp',
+          name: 'Fake MCP',
+          description: 'Regression test MCP',
+          type: 'test'
+        },
+        null,
+        2
+      ),
+      'utf-8'
+    );
+
+    const dynamicResult = await server.handleRequest('list_dynamic_mcps');
+    const stoppedMCP = dynamicResult.available.find(mcp => mcp.id === 'fake-mcp');
+
+    if (!stoppedMCP || stoppedMCP.status !== 'stopped') {
+      throw new Error('Fake MCP was not reported as a stopped dynamic MCP');
+    }
+
+    console.log(chalk.green('✅ Dynamic MCP listing:'));
+    console.log(`   Active: ${dynamicResult.active.length}`);
+    console.log(`   Available: ${dynamicResult.available.length}`);
+    console.log(`   Found stopped MCP: ${stoppedMCP.name} (${stoppedMCP.status})`);
+  } catch (error) {
+    console.log(chalk.red('❌ Dynamic MCP listing failed:'), error.message);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
   }
 
   console.log(chalk.cyan('\n🎯 All tests completed!\n'));
