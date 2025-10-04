@@ -14,7 +14,7 @@
     "wtf-mcp-router": "./bin/wtf-mcp-router.js"
   },
   "scripts": {
-    "test": "node test/test-mcp-server.js && node test/test-ingestion.js",
+    "test": "node test/test-mcp-server.js && node test/vector-store.test.js",
     "lint": "eslint lib/",
     "prepare": "npm run build",
     "build": "echo 'Build complete'",

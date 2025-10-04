@@ -17,7 +17,7 @@ import { existsSync } from 'fs';
 import { MCPManager } from '../lib/manager.js';
 import { MCPRegistry } from '../lib/registry.js';
 import { AutoDetector } from '../lib/detector.js';
-import { collectMCPMetadata, ingestToVectorStore } from '../lib/router/vector-store.js';
+import { VectorStoreIngestor } from '../lib/router/vector-store.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -241,72 +241,44 @@ program
     }
   });
 
-// Route tools command
+// Vector store ingestion command
 program
-  .command('route-tools <tools...>')
-  .description('Format retriever results into tool metadata for context injection')
-  .option('-k, --top <number>', 'Maximum number of tools to include')
-  .action(async (tools, options) => {
+  .command('ingest')
+  .description('Ingest MCP metadata into the configured vector store')
+  .option('-p, --provider <provider>', 'Vector database provider (memory, chroma, qdrant, supabase)')
+  .option('-u, --url <url>', 'Vector database base URL override')
+  .option('-c, --collection <name>', 'Vector database collection or namespace')
+  .option('-t, --table <name>', 'Supabase table name override')
+  .option('--embedding-provider <provider>', 'Embedding provider (mock, openai)')
+  .option('--embedding-model <model>', 'Embedding model identifier override')
+  .option('--embedding-endpoint <url>', 'Embedding HTTP endpoint override')
+  .option('--env <path>', 'Path to .env file with credentials', join(process.cwd(), '.claude', '.env'))
+  .action(async (options) => {
     showBanner();
-
-    const spinner = ora('Routing tool metadata...').start();
+    const spinner = ora('Ingesting MCP metadata into vector store...').start();
 
     try {
-      const { WTFMCPManagerServer } = await import('../lib/mcp-server.js');
-      const server = new WTFMCPManagerServer();
+      const ingestor = new VectorStoreIngestor({
+        provider: options.provider,
+        vectorProvider: options.provider,
+        url: options.url,
+        collection: options.collection,
+        table: options.table,
+        embeddingProvider: options.embeddingProvider,
+        embeddingModel: options.embeddingModel,
+        embeddingEndpoint: options.embeddingEndpoint,
+        envPath: options.env
+      });
 
-      const limit = options.top !== undefined ? parseInt(options.top, 10) : undefined;
+      const result = await ingestor.ingestAll();
+      spinner.succeed(chalk.green(`✅ Ingested ${result.count} documents into ${result.provider} vector store`));
 
-      if (options.top !== undefined && Number.isNaN(limit)) {
-        spinner.fail(chalk.red('Top must be a number'));
-        process.exit(1);
-      }
-
-      const retrieverResults = tools.map((tool, index) => ({
-        id: tool,
-        score: Math.max(tools.length - index, 1)
-      }));
-
-      const payload = { results: retrieverResults };
-      if (limit !== undefined) {
-        payload.limit = limit;
-      }
-
-      const routed = await server.handleRequest('route_tools', payload);
-
-      if (routed.error) {
-        throw new Error(routed.error);
-      }
-
-      spinner.succeed(chalk.green('Tool metadata ready!'));
-
-      console.log(chalk.cyan('\n🔧 Selected tools:\n'));
-      if (routed.tools.length === 0) {
-        console.log(chalk.yellow('No matching tools found for the provided results.'));
-      } else {
-        routed.tools.forEach((tool, idx) => {
-          console.log(chalk.green(`${idx + 1}. ${tool.name}`));
-          if (tool.description) {
-            console.log(chalk.gray(`   ${tool.description}`));
-          }
-        });
-      }
-
-      if (routed.examples.length > 0) {
-        console.log(chalk.cyan('\n📘 Relevant examples:\n'));
-        routed.examples.forEach(example => {
-          console.log(chalk.white(`• ${example.user}`));
-          if (example.assistant) {
-            console.log(chalk.gray(`  ${example.assistant}`));
-          }
-        });
-      }
-
-      if (routed.meta?.missing?.length) {
-        console.log(chalk.yellow(`\n⚠️  Missing tool definitions: ${routed.meta.missing.join(', ')}`));
+      if (result.ids?.length) {
+        const sampleIds = result.ids.slice(0, 5).join(', ');
+        console.log(chalk.gray(`Sample document IDs: ${sampleIds}${result.ids.length > 5 ? ', ...' : ''}`));
       }
     } catch (error) {
-      spinner.fail(chalk.red('Failed to route tools: ' + error.message));
+      spinner.fail(chalk.red(`Failed to ingest MCP metadata: ${error.message}`));
       process.exit(1);
     }
   });
