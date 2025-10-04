@@ -329,6 +329,36 @@ npm install
 npm test
 ```
 
+#### Containerised local stack
+
+1. Copy `.env.example` to `.env` and update any variables you need.
+2. (Optional) If your Qdrant instance requires an API key, save it to `secrets/vector_db_api_key` (this path is mounted as a Docker secret).
+3. Start the router and vector database:
+
+   ```bash
+   npm run compose:up
+   ```
+
+4. Tail logs from the router service:
+
+   ```bash
+   npm run compose:logs
+   ```
+
+5. Run the smoke test to verify that the router can talk to the vector database:
+
+   ```bash
+   npm run compose:test
+   ```
+
+6. Tear the stack down when you're done:
+
+   ```bash
+   npm run compose:down
+   ```
+
+The router container uses the `scripts/healthcheck.js` probe both for Docker health checks and the smoke test. It will fail fast if `VECTOR_DB_URL` is unreachable or the API key secret is misconfigured.
+
 ---
 
 ## 🎯 The Future is Conversational

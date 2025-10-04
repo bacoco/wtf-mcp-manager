@@ -49,6 +49,10 @@ build
 .env.test.local
 .env.production.local
 
+# Docker secrets
+secrets/*
+!secrets/.gitkeep
+
 # IDE
 .idea
 .vscode
