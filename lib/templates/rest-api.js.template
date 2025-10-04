@@ -21,6 +21,8 @@ class {{CLASS_NAME}}MCPServer {
     {{TOOLS_SETUP}}
   }
 
+  {{TOOL_METHODS}}
+
   async handleRequest(method, params = {}) {
     try {
       switch (method) {
