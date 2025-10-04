@@ -99,44 +99,82 @@ npx wtf-mcp-manager doctor              # Diagnose issues
 
 ---
 
-## 📚 Embed MCP knowledge into your vector store
+## 🌐 Router HTTP Service & Docker Deployment
 
-The `ingest` command exports registry entries, discovery metadata, and `mcp-tools.json` definitions into a vector database so your LLM can retrieve rich MCP knowledge.
+The WTF router now ships with an optional HTTP interface that mirrors the retrieval capabilities of the in-process MCP server. This makes it easy to host the router next to a vector database and let both the CLI and the MCP instance talk to it over HTTP when available.
+
+### API Overview
+
+- **Endpoint:** `POST /router/query`
+- **Request body:**
+  ```json
+  {
+    "query": "database tools",
+    "limit": 8
+  }
+  ```
+- **Response:**
+  ```json
+  {
+    "results": [
+      { "id": "supabase", "name": "Supabase", "score": 12 },
+      { "id": "postgresql", "name": "PostgreSQL", "score": 9 }
+    ]
+  }
+  ```
+
+You can test the endpoint with curl once the service is running:
 
 ```bash
-npx wtf-mcp-manager ingest \
-  --provider chroma \
-  --collection mcp_metadata
+curl -X POST http://localhost:3000/router/query \
+  -H 'content-type: application/json' \
+  -d '{"query":"database", "limit":5}'
 ```
 
-### Required environment variables
+### CLI & MCP Integration
 
-The CLI loads credentials from `.claude/.env` (created during `wtf-mcp-manager init`). Set the variables that match your stack:
+- Set `WTF_MCP_ROUTER_URL` (or `ROUTER_HTTP_URL`) to the base URL of the HTTP service to make the CLI and MCP server prefer HTTP over stdio.
+- Fallback is automatic—if the HTTP call fails, the CLI/server falls back to the local registry search logic.
+- A new CLI helper command makes manual queries easy:
 
-| Purpose | Variable | Notes |
-|---------|----------|-------|
-| Vector database selection | `VECTOR_DB_PROVIDER` | `memory`, `chroma`, `qdrant`, or `supabase` |
-| Vector DB auth | `VECTOR_DB_API_KEY` | API key/token if required by your provider |
-| Vector DB location | `VECTOR_DB_URL` | Base URL for Chroma/Qdrant/Supabase REST endpoint |
-| Collection/table | `VECTOR_DB_COLLECTION` | Collection/namespace for Chroma & Qdrant |
-| Supabase table | `VECTOR_DB_TABLE` | Table containing `embedding` + metadata columns |
-| Embedding provider | `EMBEDDING_PROVIDER` | `mock` (default) or `openai` |
-| Embedding endpoint | `EMBEDDING_ENDPOINT` | Override HTTP endpoint (optional) |
-| Embedding model | `EMBEDDING_MODEL` | Model identifier (e.g., `text-embedding-3-large`) |
-| Embedding API key | `EMBEDDING_API_KEY` | Secret for your embedding provider |
+  ```bash
+  npx wtf-mcp-manager router "vector database"
+  ```
 
-Example `.claude/.env` snippet:
+### Docker & Compose
 
-```env
-VECTOR_DB_PROVIDER=chroma
-VECTOR_DB_URL=http://localhost:8000
-VECTOR_DB_COLLECTION=mcp_metadata
-EMBEDDING_PROVIDER=openai
-EMBEDDING_API_KEY=sk-...
-EMBEDDING_MODEL=text-embedding-3-large
-```
+- `Dockerfile` runs the Node router service (`lib/server/http.js`).
+- `docker-compose.yml` launches both the router and a Qdrant vector database:
 
-Run `wtf-mcp-manager ingest` any time you update MCP definitions to sync the knowledge base.
+  ```bash
+  docker compose up --build
+  ```
+
+- The router service exposes port `3000` by default and depends on `vector-db` (Qdrant) listening on `6333`.
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WTF_MCP_ROUTER_URL` | _unset_ | Preferred HTTP endpoint for CLI/MCP clients. |
+| `ROUTER_HTTP_PORT` | `3000` | HTTP listen port for the router service. |
+| `ROUTER_HTTP_HOST` | `0.0.0.0` | Bind address for the HTTP server. |
+| `ROUTER_HTTP_CORS` | `*` | Comma-separated allow list for CORS responses. |
+| `ROUTER_VECTOR_URL` | `http://vector-db:6333` | Base URL for the vector database. |
+| `ROUTER_VECTOR_COLLECTION` | `wtf-mcp-router` | Qdrant collection name that stores router documents. |
+| `ROUTER_TOP_K` | `10` | Default number of results returned for queries. |
+| `ROUTER_HTTP_TIMEOUT` | `10000` | Timeout (ms) for vector DB requests. |
+| `ROUTER_EMBEDDINGS_URL` | _unset_ | Optional external embeddings endpoint for vector search. |
+| `ROUTER_EMBEDDINGS_API_KEY` | _unset_ | API key forwarded to the embeddings endpoint. |
+| `ROUTER_EMBEDDINGS_MODEL` | _unset_ | Model hint for the embeddings endpoint. |
+
+### Security Considerations
+
+- Restrict the router and vector database to private networks or VPNs; do not expose them directly to the public internet.
+- Configure `ROUTER_HTTP_CORS` and firewalls to allow only trusted origins and IP ranges.
+- Store secrets (embedding API keys, etc.) in `.env` or external secret managers—never commit them to git.
+- Enable TLS/HTTPS via a reverse proxy when the router is accessed across networks.
+- Apply access control to the vector database (Qdrant) and regularly rotate any API keys used for embeddings.
 
 ---
 

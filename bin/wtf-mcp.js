@@ -26,14 +26,54 @@ const packageJson = JSON.parse(await fs.readFile(join(__dirname, '..', 'package.
 const program = new Command();
 const manager = new MCPManager();
 
-function loadClaudeEnv() {
-  const claudeEnvPath = join(process.cwd(), '.claude', '.env');
-  if (existsSync(claudeEnvPath)) {
-    dotenv.config({ path: claudeEnvPath });
-  }
-}
+const normalizeRouterEndpoint = (url) => {
+  if (!url) return null;
+  return url.endsWith('/') ? url.slice(0, -1) : url;
+};
 
-loadClaudeEnv();
+const getRouterEndpoint = () => {
+  return normalizeRouterEndpoint(
+    process.env.WTF_MCP_ROUTER_URL ||
+    process.env.ROUTER_HTTP_URL ||
+    process.env.ROUTER_URL ||
+    null
+  );
+};
+
+async function queryRouter(query, limit = 5) {
+  const endpoint = getRouterEndpoint();
+
+  if (endpoint) {
+    try {
+      const response = await fetch(`${endpoint}/router/query`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ query, limit })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data.results) && data.results.length > 0) {
+          return data.results.slice(0, limit);
+        }
+      } else {
+        console.warn(chalk.yellow(`Router endpoint responded with status ${response.status}`));
+      }
+    } catch (error) {
+      console.warn(chalk.yellow(`Router HTTP query failed: ${error.message || error}`));
+    }
+  }
+
+  const { RouterRetriever } = await import('../lib/server/retriever.js');
+  const fallbackRetriever = new RouterRetriever({
+    registry: new MCPRegistry(),
+    vectorUrl: null,
+    embedUrl: null,
+    fallback: null
+  });
+
+  return fallbackRetriever.registryFallback(query, limit);
+}
 
 // Banner
 function showBanner() {
@@ -153,6 +193,24 @@ program
       
       const registry = new MCPRegistry();
       const mcpInfo = registry.get(mcpId);
+
+      if (!mcpInfo) {
+        spinner.fail(chalk.red(`Unknown MCP: ${mcpId}`));
+        const suggestions = await queryRouter(mcpId, 5);
+
+        if (suggestions.length > 0) {
+          console.log(chalk.yellow('\nDid you mean:'));
+          suggestions.forEach((suggestion, index) => {
+            const label = suggestion.name || suggestion.id;
+            const description = suggestion.description ? ` - ${suggestion.description}` : '';
+            console.log(chalk.gray(`  ${index + 1}. ${label}${description}`));
+          });
+        } else {
+          console.log(chalk.gray('\nNo similar MCPs found in local registry.'));
+        }
+
+        process.exit(1);
+      }
       
       if (mcpInfo && mcpInfo.requiredEnv) {
         const missing = mcpInfo.requiredEnv.filter(key => !envVars[key] && !process.env[key]);
@@ -176,9 +234,46 @@ program
       
       await manager.enable(mcpId, envVars);
       spinner.succeed(chalk.green(`✅ ${mcpId} enabled! WTF that was easy!`));
-      
+
     } catch (error) {
       spinner.fail(chalk.red('WTF! Failed: ' + error.message));
+      process.exit(1);
+    }
+  });
+
+// Router command
+program
+  .command('router <query>')
+  .description('Query the WTF router for recommended MCPs')
+  .option('-k, --top <number>', 'Number of results to return', '5')
+  .action(async (query, options) => {
+    const limit = Number.parseInt(options.top, 10) || 5;
+    const spinner = ora(`Querying router for "${query}"...`).start();
+
+    try {
+      const results = await queryRouter(query, limit);
+      spinner.stop();
+
+      if (!results || results.length === 0) {
+        console.log(chalk.yellow('\nNo router recommendations found.'));
+        return;
+      }
+
+      console.log(chalk.cyan(`\n🔎 Router recommendations for "${query}":\n`));
+      results.forEach((result, index) => {
+        const label = result.name || result.id;
+        const score = typeof result.score === 'number' ? ` (score: ${result.score.toFixed(2)})` : '';
+        console.log(`${index + 1}. ${chalk.green(label)}${score}`);
+        if (result.description) {
+          console.log(chalk.gray(`   ${result.description}`));
+        }
+        if (Array.isArray(result.categories) && result.categories.length > 0) {
+          console.log(chalk.gray(`   Categories: ${result.categories.join(', ')}`));
+        }
+      });
+    } catch (error) {
+      spinner.fail(chalk.red('Failed to query router'));
+      console.error(chalk.red(error.message || error));
       process.exit(1);
     }
   });
