@@ -15,6 +15,7 @@ import fs from 'fs/promises';
 import { MCPManager } from '../lib/manager.js';
 import { MCPRegistry } from '../lib/registry.js';
 import { AutoDetector } from '../lib/detector.js';
+import { VectorStoreIngestor } from '../lib/router/vector-store.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -226,6 +227,48 @@ program
         await manager.enable(mcp.id);
       }
       console.log(chalk.green('\n✅ All MCPs enabled! WTF, that was quick!'));
+    }
+  });
+
+// Vector store ingestion command
+program
+  .command('ingest')
+  .description('Ingest MCP metadata into the configured vector store')
+  .option('-p, --provider <provider>', 'Vector database provider (memory, chroma, qdrant, supabase)')
+  .option('-u, --url <url>', 'Vector database base URL override')
+  .option('-c, --collection <name>', 'Vector database collection or namespace')
+  .option('-t, --table <name>', 'Supabase table name override')
+  .option('--embedding-provider <provider>', 'Embedding provider (mock, openai)')
+  .option('--embedding-model <model>', 'Embedding model identifier override')
+  .option('--embedding-endpoint <url>', 'Embedding HTTP endpoint override')
+  .option('--env <path>', 'Path to .env file with credentials', join(process.cwd(), '.claude', '.env'))
+  .action(async (options) => {
+    showBanner();
+    const spinner = ora('Ingesting MCP metadata into vector store...').start();
+
+    try {
+      const ingestor = new VectorStoreIngestor({
+        provider: options.provider,
+        vectorProvider: options.provider,
+        url: options.url,
+        collection: options.collection,
+        table: options.table,
+        embeddingProvider: options.embeddingProvider,
+        embeddingModel: options.embeddingModel,
+        embeddingEndpoint: options.embeddingEndpoint,
+        envPath: options.env
+      });
+
+      const result = await ingestor.ingestAll();
+      spinner.succeed(chalk.green(`✅ Ingested ${result.count} documents into ${result.provider} vector store`));
+
+      if (result.ids?.length) {
+        const sampleIds = result.ids.slice(0, 5).join(', ');
+        console.log(chalk.gray(`Sample document IDs: ${sampleIds}${result.ids.length > 5 ? ', ...' : ''}`));
+      }
+    } catch (error) {
+      spinner.fail(chalk.red(`Failed to ingest MCP metadata: ${error.message}`));
+      process.exit(1);
     }
   });
 

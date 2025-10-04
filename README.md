@@ -66,6 +66,7 @@ npx wtf-mcp-manager init                # Initialize project
 npx wtf-mcp-manager list                # Show all MCPs
 npx wtf-mcp-manager enable supabase     # Enable specific MCP
 npx wtf-mcp-manager detect              # Auto-detect MCPs
+npx wtf-mcp-manager ingest --provider memory  # Embed metadata into a vector DB
 npx wtf-mcp-manager doctor              # Diagnose issues
 ```
 
@@ -83,6 +84,47 @@ npx wtf-mcp-manager doctor              # Diagnose issues
 ```
 
 **Then just talk to Claude naturally and it will manage everything!**
+
+---
+
+## 📚 Embed MCP knowledge into your vector store
+
+The `ingest` command exports registry entries, discovery metadata, and `mcp-tools.json` definitions into a vector database so your LLM can retrieve rich MCP knowledge.
+
+```bash
+npx wtf-mcp-manager ingest \
+  --provider chroma \
+  --collection mcp_metadata
+```
+
+### Required environment variables
+
+The CLI loads credentials from `.claude/.env` (created during `wtf-mcp-manager init`). Set the variables that match your stack:
+
+| Purpose | Variable | Notes |
+|---------|----------|-------|
+| Vector database selection | `VECTOR_DB_PROVIDER` | `memory`, `chroma`, `qdrant`, or `supabase` |
+| Vector DB auth | `VECTOR_DB_API_KEY` | API key/token if required by your provider |
+| Vector DB location | `VECTOR_DB_URL` | Base URL for Chroma/Qdrant/Supabase REST endpoint |
+| Collection/table | `VECTOR_DB_COLLECTION` | Collection/namespace for Chroma & Qdrant |
+| Supabase table | `VECTOR_DB_TABLE` | Table containing `embedding` + metadata columns |
+| Embedding provider | `EMBEDDING_PROVIDER` | `mock` (default) or `openai` |
+| Embedding endpoint | `EMBEDDING_ENDPOINT` | Override HTTP endpoint (optional) |
+| Embedding model | `EMBEDDING_MODEL` | Model identifier (e.g., `text-embedding-3-large`) |
+| Embedding API key | `EMBEDDING_API_KEY` | Secret for your embedding provider |
+
+Example `.claude/.env` snippet:
+
+```env
+VECTOR_DB_PROVIDER=chroma
+VECTOR_DB_URL=http://localhost:8000
+VECTOR_DB_COLLECTION=mcp_metadata
+EMBEDDING_PROVIDER=openai
+EMBEDDING_API_KEY=sk-...
+EMBEDDING_MODEL=text-embedding-3-large
+```
+
+Run `wtf-mcp-manager ingest` any time you update MCP definitions to sync the knowledge base.
 
 ---
 

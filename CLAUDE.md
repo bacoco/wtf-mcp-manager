@@ -66,6 +66,7 @@ Main commands accessible via `npx wtf-mcp-manager` or aliases `wtf-mcp`, `claude
 - `enable <mcp> [--env KEY=value]` - Enable an MCP with optional env vars
 - `disable <mcp>` - Disable an MCP
 - `detect` - Auto-detect needed MCPs based on project
+- `ingest` - Embed MCP metadata into a configured vector store
 - `serve` - Start Meta-MCP server for Claude integration
 - `global <list|disable> [mcp]` - Manage global Claude MCPs
 - `doctor` - Diagnose configuration issues
