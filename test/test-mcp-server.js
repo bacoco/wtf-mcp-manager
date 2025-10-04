@@ -120,6 +120,44 @@ async function runTests() {
     console.log(chalk.red('❌ Diagnostics failed:'), error.message);
   }
 
+  // Test 8: Auto-create enabling existing MCP
+  console.log(chalk.yellow('\n8. Testing auto-create for existing MCP...'));
+  try {
+    const autoServer = new WTFMCPManagerServer();
+    const fakeAPI = {
+      type: 'existing-mcp',
+      name: 'Supabase',
+      package: '@supabase/mcp-server-supabase'
+    };
+
+    let enabledId = null;
+
+    autoServer.discovery.discoverAPIs = async () => [fakeAPI];
+    autoServer.manager.enable = async (mcpId) => {
+      enabledId = mcpId;
+      return { id: mcpId };
+    };
+    autoServer.registry.get = (mcpId) => {
+      if (mcpId === 'supabase') {
+        return { name: 'Supabase', command: 'npx', args: [] };
+      }
+      return null;
+    };
+
+    const result = await autoServer.discoverOrCreateMCP({
+      query: 'supabase',
+      autoCreate: true
+    });
+
+    if (result.success && enabledId === 'supabase') {
+      console.log(chalk.green('✅ Auto-create successfully enabled existing MCP with canonical ID.'));
+    } else {
+      console.log(chalk.red('❌ Auto-create did not enable the expected MCP ID.'), result);
+    }
+  } catch (error) {
+    console.log(chalk.red('❌ Auto-create existing MCP test failed:'), error.message);
+  }
+
   console.log(chalk.cyan('\n🎯 All tests completed!\n'));
 }
 
