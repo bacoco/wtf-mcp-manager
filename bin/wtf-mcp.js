@@ -18,6 +18,7 @@ import { MCPManager } from '../lib/manager.js';
 import { MCPRegistry } from '../lib/registry.js';
 import { AutoDetector } from '../lib/detector.js';
 import { RouterClient } from '../lib/router/client.js';
+import VectorStoreIngestor, { collectMCPMetadata, ingestToVectorStore } from '../lib/router/vector-store.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
