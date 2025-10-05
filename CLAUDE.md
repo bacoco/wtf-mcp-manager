@@ -59,7 +59,7 @@ Project configurations are stored in:
 
 ## CLI Commands
 
-Main commands accessible via `npx wtf-mcp-manager` or aliases `wtf-mcp`, `claude-mcp`:
+Main commands accessible via `npx -y wtf-mcp-manager` or aliases `wtf-mcp`, `claude-mcp`:
 
 - `init [--force] [--profile <name>]` - Initialize project configuration
 - `list [--enabled] [--available]` - List MCPs
