@@ -24,25 +24,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const packageJson = JSON.parse(await fs.readFile(join(__dirname, '..', 'package.json'), 'utf8'));
 
-function loadClaudeEnv(envPath = join(process.cwd(), '.claude', '.env')) {
-  if (process.env.__WTF_MCP_ENV_LOADED) {
-    return;
-  }
+// Load project environment variables from .claude/.env (fallback to .env)
+const envPaths = [
+  join(process.cwd(), '.claude', '.env'),
+  join(process.cwd(), '.env')
+];
 
-  try {
-    if (existsSync(envPath)) {
+for (const envPath of envPaths) {
+  if (existsSync(envPath)) {
+    try {
       dotenv.config({ path: envPath, override: false });
-    } else {
-      dotenv.config();
+    } catch (error) {
+      console.warn(chalk.yellow(`⚠️  Failed to load env file at ${envPath}: ${error.message || error}`));
     }
-  } catch (error) {
-    console.warn(chalk.yellow(`[wtf-mcp-manager] Unable to load environment file: ${error.message}`));
+    break;
   }
-
-  process.env.__WTF_MCP_ENV_LOADED = 'true';
 }
-
-loadClaudeEnv();
 
 const program = new Command();
 const manager = new MCPManager();
