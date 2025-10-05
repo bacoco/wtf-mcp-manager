@@ -45,6 +45,21 @@ const program = new Command();
 const manager = new MCPManager();
 const routerClient = new RouterClient();
 
+const promptForEnvVars = async (keys) => {
+  if (!Array.isArray(keys) || keys.length === 0) {
+    return {};
+  }
+
+  return inquirer.prompt(
+    keys.map(key => ({
+      type: 'password',
+      name: key,
+      message: `Enter ${key}:`,
+      mask: '*'
+    }))
+  );
+};
+
 const normalizeRouterEndpoint = (url) => {
   if (!url) return null;
   return url.endsWith('/') ? url.slice(0, -1) : url;
@@ -144,10 +159,93 @@ program
         }]);
         
         if (autoEnable) {
+          const registry = new MCPRegistry();
+          await manager.load();
+
+          const enabledMcps = [];
+          const skippedMcps = [];
+          const alreadyEnabled = [];
+
           for (const mcp of detected) {
-            await manager.enable(mcp.id);
+            if (manager.config?.mcpServers?.[mcp.id]) {
+              alreadyEnabled.push(mcp.id);
+              continue;
+            }
+
+            const mcpInfo = registry.get(mcp.id);
+
+            if (!mcpInfo) {
+              skippedMcps.push({ id: mcp.id, reason: 'Not found in registry' });
+              console.log(chalk.yellow(`   • Skipping ${mcp.id} (not found in registry)`));
+              continue;
+            }
+
+            let envVars = {};
+            const requiredEnv = Array.isArray(mcpInfo.requiredEnv) ? mcpInfo.requiredEnv : [];
+            let missing = requiredEnv.filter(key => !process.env[key]);
+
+            if (missing.length > 0) {
+              console.log(chalk.yellow(`\n🔐 ${mcpInfo.name || mcp.id} needs credentials:`));
+              console.log(chalk.gray(`   ${missing.join(', ')}`));
+
+              const { provideSecrets } = await inquirer.prompt([{
+                type: 'confirm',
+                name: 'provideSecrets',
+                message: `Provide required secrets for ${mcpInfo.name || mcp.id}?`,
+                default: true
+              }]);
+
+              if (!provideSecrets) {
+                skippedMcps.push({ id: mcp.id, reason: 'User skipped secret entry' });
+                console.log(chalk.gray(`   Skipping ${mcp.id} (secrets not provided).`));
+                continue;
+              }
+
+              const answers = await promptForEnvVars(missing);
+
+              for (const key of missing) {
+                if (answers[key]) {
+                  envVars[key] = answers[key];
+                }
+              }
+
+              missing = requiredEnv.filter(key => !envVars[key] && !process.env[key]);
+
+              if (missing.length > 0) {
+                skippedMcps.push({ id: mcp.id, reason: `Missing: ${missing.join(', ')}` });
+                console.log(chalk.gray(`   Skipping ${mcp.id} (missing: ${missing.join(', ')}).`));
+                continue;
+              }
+            }
+
+            try {
+              await manager.enable(mcp.id, envVars);
+              enabledMcps.push(mcp.id);
+            } catch (error) {
+              skippedMcps.push({ id: mcp.id, reason: error.message || 'Failed to enable' });
+              console.log(chalk.yellow(`   • Skipping ${mcp.id}: ${error.message || error}`));
+            }
           }
-          console.log(chalk.green('✅ MCPs enabled! Let\'s go!'));
+
+          if (enabledMcps.length > 0) {
+            console.log(chalk.green(`\n✅ Enabled MCPs: ${enabledMcps.join(', ')}`));
+          }
+
+          if (alreadyEnabled.length > 0) {
+            console.log(chalk.gray(`\nℹ️ Already enabled: ${alreadyEnabled.join(', ')}`));
+          }
+
+          if (skippedMcps.length > 0) {
+            console.log(chalk.yellow('\n⚠️ Skipped MCPs:'));
+            skippedMcps.forEach(({ id, reason }) => {
+              console.log(chalk.gray(`   • ${id}${reason ? ` (${reason})` : ''}`));
+            });
+            console.log(chalk.gray('   Re-run `wtf-mcp-manager enable <mcp>` when you have the credentials.'));
+          }
+
+          if (enabledMcps.length === 0 && alreadyEnabled.length === 0 && skippedMcps.length === 0) {
+            console.log(chalk.gray('\nNo MCPs were enabled.'));
+          }
         }
       }
       
@@ -286,15 +384,8 @@ program
           spinner.stop();
           console.log(chalk.yellow('\n📝 WTF! I need these env vars:'));
           
-          const answers = await inquirer.prompt(
-            missing.map(key => ({
-              type: 'password',
-              name: key,
-              message: `Enter ${key}:`,
-              mask: '*'
-            }))
-          );
-          
+          const answers = await promptForEnvVars(missing);
+
           Object.assign(envVars, answers);
         }
       }
