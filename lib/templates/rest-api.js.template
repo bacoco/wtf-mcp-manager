@@ -6,7 +6,11 @@
  * Type: REST API
  */
 
-{{IMPORTS}}
+import fetch from 'node-fetch';
+
+if (!globalThis.fetch) {
+  globalThis.fetch = fetch;
+}
 
 class {{CLASS_NAME}}MCPServer {
   constructor() {
