@@ -48,6 +48,8 @@ These sources are merged, deduplicated, and scored before being returned to Clau
 npx -y wtf-mcp-manager init
 ```
 
+During `wtf-mcp-manager init`, the auto-enable flow now prompts you for any required secrets and politely skips MCPs when you decline or leave credentials empty. No secrets lying around? No problem.
+
 **That's it.** The chatbot discovers your needs, suggests MCPs, and configures everything.
 
 ---
