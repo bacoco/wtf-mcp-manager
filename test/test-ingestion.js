@@ -3,115 +3,67 @@
 import assert from 'assert';
 import chalk from 'chalk';
 import {
-  collectMCPMetadata,
-  toVectorRecord,
-  ingestToVectorStore,
-  VectorStoreClient
+  VectorStoreIngestor,
+  MemoryVectorDatabase,
+  MockEmbeddingClient
 } from '../lib/router/vector-store.js';
 
-class MockEmbedder {
-  constructor() {
-    this.calls = [];
-  }
+async function createIngestor(overrides = {}) {
+  const vectorDb = overrides.vectorDb ?? new MemoryVectorDatabase();
+  const embeddingClient = overrides.embeddingClient ?? new MockEmbeddingClient();
 
-  async embed(text, record) {
-    this.calls.push({ text, record });
-    return [text.length % 10, record.id.length];
-  }
+  return new VectorStoreIngestor({
+    vectorDb,
+    embeddingClient,
+    provider: 'memory',
+    embeddingProvider: 'mock',
+    ...overrides
+  });
 }
 
-class MockVectorStore {
-  constructor() {
-    this.collectionEnsured = false;
-    this.upsertRecords = [];
-  }
+async function testDocumentCollection() {
+  const ingestor = await createIngestor();
+  const documents = await ingestor.collectDocuments();
 
-  async ensureCollection() {
-    this.collectionEnsured = true;
-  }
+  assert(documents.length > 0, 'Expected to collect at least one document for ingestion');
+  const sample = documents[0];
+  assert.strictEqual(typeof sample.text, 'string', 'Collected document should contain serialized text content');
+  assert(sample.text.includes('Source:'), 'Serialized document should include its source metadata');
 
-  async upsert(records) {
-    this.upsertRecords.push(...records);
-  }
+  console.log(chalk.green(`✅ Collected ${documents.length} documents for ingestion`));
 }
 
-async function testMetadataCollection() {
-  const records = await collectMCPMetadata();
-  assert(records.length > 0, 'Expected to collect at least one metadata record');
-  const vectorRecord = toVectorRecord(records[0]);
-  assert(vectorRecord.document.includes('Name:'), 'Vector record should contain a document payload');
-  console.log(chalk.green(`✅ Collected ${records.length} metadata records`));
-}
+async function testEmbeddingWorkflow() {
+  const ingestor = await createIngestor();
+  const documents = (await ingestor.collectDocuments()).slice(0, 2);
 
-async function testVectorStoreClient() {
-  const requests = [];
-  const mockFetch = async (url, init = {}) => {
-    requests.push({ url, init });
-    return {
-      ok: true,
-      status: 200,
-      json: async () => ({}),
-      text: async () => ''
-    };
-  };
+  const embedded = await ingestor.embedDocuments(documents);
 
-  const client = new VectorStoreClient({
-    provider: 'chroma',
-    url: 'https://vector.example.com',
-    collection: 'wtf-test'
-  }, mockFetch);
+  assert.strictEqual(embedded.length, documents.length, 'Embedding should return a vector for each document');
+  assert(embedded.every(doc => Array.isArray(doc.embedding)), 'Embedded documents should include embedding arrays');
+  assert(embedded.every(doc => doc.embedding.length > 0), 'Embeddings should not be empty');
 
-  await client.ensureCollection();
-  const ensureRequest = requests.find(req => req.url.endsWith('/collections'));
-  assert(ensureRequest, 'Expected ensureCollection to hit /collections endpoint');
-
-  await client.upsert([
-    {
-      id: 'registry:test',
-      name: 'Test',
-      description: 'Desc',
-      source: 'registry',
-      schema: null,
-      examples: [],
-      metadata: {},
-      document: 'doc',
-      embedding: [0.1, 0.2]
-    }
-  ]);
-
-  const upsertRequest = requests.find(req => req.url.includes('/collections/wtf-test/upsert'));
-  assert(upsertRequest, 'Expected upsert to call the collection upsert endpoint');
-  const payload = JSON.parse(upsertRequest.init.body);
-  assert.strictEqual(payload.ids[0], 'registry:test');
-  assert.deepStrictEqual(payload.embeddings[0], [0.1, 0.2]);
-  console.log(chalk.green('✅ VectorStoreClient ensures collection and upserts records'));
+  console.log(chalk.green('✅ Embedding workflow produced vector representations for documents'));
 }
 
 async function testIngestionPipeline() {
-  const embedder = new MockEmbedder();
-  const store = new MockVectorStore();
-  const result = await ingestToVectorStore({
-    embeddingProvider: embedder,
-    vectorStore: store,
-    vectorStoreConfig: {
-      provider: 'chroma',
-      url: 'https://vector.example.com',
-      collection: 'wtf-test'
-    }
-  });
+  const vectorDb = new MemoryVectorDatabase();
+  const ingestor = await createIngestor({ vectorDb });
 
-  assert(store.collectionEnsured, 'Expected vector store collection to be ensured');
-  assert(store.upsertRecords.length > 0, 'Expected records to be written to the vector store');
-  assert.strictEqual(result.collection, 'wtf-test');
-  assert.strictEqual(result.provider, 'chroma');
-  assert(embedder.calls.length > 0, 'Embedding provider should be invoked');
-  console.log(chalk.green(`✅ Ingestion pipeline wrote ${store.upsertRecords.length} records`));
+  const result = await ingestor.ingestAll();
+
+  assert(result.count > 0, 'Expected ingestAll to insert at least one record');
+  assert.strictEqual(result.provider, 'memory', 'Ingestion result should report memory provider for tests');
+  assert.strictEqual(vectorDb.records.length, result.count, 'All embedded records should be stored in the vector database');
+  assert(vectorDb.records.every(record => Array.isArray(record.embedding)), 'Stored records should include embeddings');
+
+  console.log(chalk.green(`✅ Ingestion pipeline inserted ${result.count} records into the vector database`));
 }
 
 async function run() {
-  console.log(chalk.cyan('\n🧪 Testing ingestion pipeline\n'));
-  await testMetadataCollection();
-  await testVectorStoreClient();
+  console.log(chalk.cyan('\n🧪 Testing VectorStoreIngestor workflow\n'));
+  await testDocumentCollection();
+  await testEmbeddingWorkflow();
   await testIngestionPipeline();
   console.log(chalk.cyan('\n🎯 Ingestion tests complete!\n'));
 }

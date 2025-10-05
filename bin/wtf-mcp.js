@@ -519,45 +519,6 @@ program
     }
   });
 
-program
-  .command('ingest')
-  .description('Aggregate MCP metadata and push it into the configured vector store')
-  .option('--dry-run', 'Collect metadata and show a preview without writing to the vector store', false)
-  .action(async (options) => {
-    showBanner();
-    const spinner = ora('Collecting MCP metadata...').start();
-    let ingestSpinner;
-
-    try {
-      const records = await collectMCPMetadata();
-      spinner.succeed(chalk.green(`Collected ${records.length} MCP metadata records.`));
-
-      if (options.dryRun) {
-        console.log(chalk.cyan('\n🧪 Dry run preview (first 3 records):\n'));
-        records.slice(0, 3).forEach(record => {
-          console.log(chalk.yellow(`• ${record.name}`));
-          console.log(chalk.gray(`  Source: ${record.source}`));
-          if (record.description) {
-            console.log(chalk.gray(`  Description: ${record.description}`));
-          }
-          console.log('');
-        });
-        return;
-      }
-
-      ingestSpinner = ora('Writing embeddings to the vector store...').start();
-      const result = await ingestToVectorStore();
-      ingestSpinner.succeed(chalk.green(`Ingested ${result.count} records into ${result.provider} (${result.collection}).`));
-    } catch (error) {
-      if (ingestSpinner) {
-        ingestSpinner.fail(chalk.red(`Failed to write to vector store: ${error.message}`));
-      } else {
-        spinner.fail(chalk.red(`Failed to ingest metadata: ${error.message}`));
-      }
-      process.exit(1);
-    }
-  });
-
 // Removed chat command - use Claude integration instead
 
 // Interactive mode (default)
