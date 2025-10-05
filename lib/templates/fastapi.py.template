@@ -5,12 +5,13 @@ Created: {{TIMESTAMP}}
 Type: FastAPI MCP Server
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body, Response
 from fastapi_mcp import FastApiMCP
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from typing import Dict, Any
 import os
-import json
+import httpx
+
+API_BASE = "{{API_BASE}}"
 
 # Create FastAPI app
 app = FastAPI(

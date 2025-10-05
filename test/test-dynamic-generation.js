@@ -7,6 +7,8 @@
 import { DynamicMCPGenerator } from '../lib/dynamic/mcp-generator.js';
 import { APIDiscoveryService } from '../lib/discovery/api-discovery.js';
 import chalk from 'chalk';
+import http from 'node:http';
+import assert from 'node:assert';
 
 async function testDynamicGeneration() {
   console.log(chalk.cyan('\n🧪 Testing Dynamic MCP Generation System\n'));
@@ -129,6 +131,82 @@ async function testDynamicGeneration() {
     console.log(chalk.green(`✅ ${passed}/${apiTypes.length} API types detected correctly`));
   } catch (error) {
     console.log(chalk.red('❌ API type detection failed:'), error.message);
+  }
+
+  // Test 7: Generated tool makes upstream HTTP request
+  console.log(chalk.yellow('\n7. Testing generated tool HTTP forwarding...'));
+  let server;
+  try {
+    const fetchImpl = global.fetch || (await import('node-fetch')).default;
+    if (!global.fetch) {
+      global.fetch = fetchImpl;
+    }
+
+    const receivedRequests = [];
+    server = http.createServer((req, res) => {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk;
+      });
+      req.on('end', () => {
+        receivedRequests.push({
+          method: req.method,
+          url: req.url,
+          body: body ? JSON.parse(body) : null,
+          headers: req.headers
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      });
+    });
+
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address();
+    const baseUrl = `http://127.0.0.1:${port}`;
+
+    const endpointSpec = {
+      path: '/echo',
+      method: 'POST',
+      description: 'Echo payload back',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Identifier' },
+          message: { type: 'string', description: 'Message to echo' }
+        },
+        required: ['id']
+      }
+    };
+
+    const toolName = generator.endpointToToolName(endpointSpec);
+    const methodSource = generator.generateToolMethod('rest', toolName, endpointSpec);
+    const ToolClass = new Function(`
+return class GeneratedTool {
+  constructor() {
+    this.apiBase = ${JSON.stringify(baseUrl)};
+  }
+${methodSource}
+};
+    `)();
+
+    const toolInstance = new ToolClass();
+    const result = await toolInstance[toolName]({ id: 'abc', message: 'hello world' });
+
+    assert.strictEqual(receivedRequests.length, 1, 'Upstream service did not receive a request');
+    const [requestDetails] = receivedRequests;
+    assert.strictEqual(requestDetails.method, 'POST');
+    assert.ok(requestDetails.url.startsWith('/echo'));
+    assert.deepStrictEqual(requestDetails.body, { id: 'abc', message: 'hello world' });
+    assert.strictEqual(result.status, 200);
+    assert.deepStrictEqual(result.data, { ok: true });
+
+    console.log(chalk.green('✅ Generated tool forwarded request to upstream service'));
+  } catch (error) {
+    console.log(chalk.red('❌ Generated tool forwarding failed:'), error.message);
+  } finally {
+    if (server) {
+      await new Promise(resolve => server.close(resolve));
+    }
   }
 
   console.log(chalk.cyan('\n🎯 Dynamic MCP generation tests completed!\n'));

@@ -37,10 +37,10 @@ class {{CLASS_NAME}}MCPServer {
 
   async executeGraphQL(query, variables = {}) {
     try {
-      const result = await this.client.request(query, variables);
-      return { success: true, data: result };
+      return await this.client.request(query, variables);
     } catch (error) {
-      return { success: false, error: error.message };
+      const details = error?.response?.errors ? JSON.stringify(error.response.errors) : error.message;
+      throw new Error(`GraphQL request failed: ${details}`);
     }
   }
 
