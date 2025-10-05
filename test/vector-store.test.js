@@ -17,6 +17,33 @@ async function runVectorStoreTests() {
     embeddingProvider: 'mock'
   });
 
+  const sampleDocs = [
+    {
+      id: 'test:doc',
+      source: 'test',
+      name: 'Test Document',
+      description: 'Ensures async embedding initialization resolves correctly',
+      schema: null,
+      example: '',
+      text: 'Sample text for embedding',
+      metadata: {}
+    }
+  ];
+
+  const embeddedDocs = await ingestor.embedDocuments(sampleDocs);
+  assert.equal(embeddedDocs.length, sampleDocs.length, 'embedDocuments should return embeddings for all docs');
+  assert.ok(Array.isArray(embeddedDocs[0].embedding), 'embedded document should include an embedding array');
+  assert.ok(ingestor.embeddingClient, 'embedding client should be resolved after embedding');
+
+  const asyncIngestor = new VectorStoreIngestor({
+    vectorDb: new MemoryVectorDatabase(),
+    provider: 'memory',
+    embeddingProvider: 'mock'
+  });
+  const asyncEmbeddedDocs = await asyncIngestor.embedDocuments(sampleDocs);
+  assert.ok(Array.isArray(asyncEmbeddedDocs[0].embedding), 'async-created embedding client should embed documents');
+  assert.ok(asyncIngestor.embeddingClient, 'async-created embedding client should resolve during embedding');
+
   const result = await ingestor.ingestAll();
 
   assert.ok(result.count > 0, 'ingestion should create at least one document');
