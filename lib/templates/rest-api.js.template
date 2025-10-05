@@ -6,6 +6,8 @@
  * Type: REST API
  */
 
+{{IMPORTS}}
+
 class {{CLASS_NAME}}MCPServer {
   constructor() {
     this.apiBase = '{{API_BASE}}';
