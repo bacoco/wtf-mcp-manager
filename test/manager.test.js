@@ -48,3 +48,49 @@ test('init and enable handle custom backend profile', async t => {
     'enabled MCP should be recorded in the configuration'
   );
 });
+
+test('CLI loads .claude env variables before prompting', async t => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mcp-manager-cli-'));
+
+  t.after(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  const envDir = path.join(tempDir, '.claude');
+  await fs.mkdir(envDir, { recursive: true });
+
+  const envKey = 'WTF_MCP_FAKE_TOKEN';
+  const envValue = 'super-secret';
+  await fs.writeFile(path.join(envDir, '.env'), `${envKey}=${envValue}\n`, 'utf8');
+
+  const originalCwd = process.cwd();
+  const originalArgv = [...process.argv];
+  const previousEnvValue = process.env[envKey];
+  const originalExit = process.exit;
+  const originalExitCode = process.exitCode;
+
+  delete process.env[envKey];
+  process.chdir(tempDir);
+  process.argv = ['node', 'wtf-mcp-manager'];
+  process.exit = () => {};
+
+  try {
+    await import('../bin/wtf-mcp.js');
+    assert.strictEqual(
+      process.env[envKey],
+      envValue,
+      'env variables from .claude/.env should populate process.env before CLI prompts'
+    );
+  } finally {
+    process.exit = originalExit;
+    process.exitCode = originalExitCode;
+    process.argv = originalArgv;
+    process.chdir(originalCwd);
+
+    if (previousEnvValue === undefined) {
+      delete process.env[envKey];
+    } else {
+      process.env[envKey] = previousEnvValue;
+    }
+  }
+});

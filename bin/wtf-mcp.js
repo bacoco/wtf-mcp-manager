@@ -24,6 +24,23 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const packageJson = JSON.parse(await fs.readFile(join(__dirname, '..', 'package.json'), 'utf8'));
 
+// Load project environment variables from .claude/.env (fallback to .env)
+const envPaths = [
+  join(process.cwd(), '.claude', '.env'),
+  join(process.cwd(), '.env')
+];
+
+for (const envPath of envPaths) {
+  if (existsSync(envPath)) {
+    try {
+      dotenv.config({ path: envPath, override: false });
+    } catch (error) {
+      console.warn(chalk.yellow(`⚠️  Failed to load env file at ${envPath}: ${error.message || error}`));
+    }
+    break;
+  }
+}
+
 const program = new Command();
 const manager = new MCPManager();
 const routerClient = new RouterClient();

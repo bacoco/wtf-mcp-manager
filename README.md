@@ -45,7 +45,7 @@ These sources are merged, deduplicated, and scored before being returned to Clau
 ```bash
 # 1. Add to Claude and chat directly!
 # 2. Or start with auto-detection
-npx wtf-mcp-manager init
+npx -y wtf-mcp-manager init
 ```
 
 **That's it.** The chatbot discovers your needs, suggests MCPs, and configures everything.
@@ -74,12 +74,12 @@ Would you like me to enable any of these for your project?
 **For project setup and direct management:**
 
 ```bash
-npx wtf-mcp-manager init                # Initialize project
-npx wtf-mcp-manager list                # Show all MCPs
-npx wtf-mcp-manager enable supabase     # Enable specific MCP
-npx wtf-mcp-manager detect              # Auto-detect MCPs
-npx wtf-mcp-manager ingest --provider memory  # Embed metadata into a vector DB
-npx wtf-mcp-manager doctor              # Diagnose issues
+npx -y wtf-mcp-manager init                # Initialize project
+npx -y wtf-mcp-manager list                # Show all MCPs
+npx -y wtf-mcp-manager enable supabase     # Enable specific MCP
+npx -y wtf-mcp-manager detect              # Auto-detect MCPs
+npx -y wtf-mcp-manager ingest --provider memory  # Embed metadata into a vector DB
+npx -y wtf-mcp-manager doctor              # Diagnose issues
 ```
 
 **But the magic happens when you add it to Claude:**
@@ -89,7 +89,7 @@ npx wtf-mcp-manager doctor              # Diagnose issues
   "mcpServers": {
     "wtf-mcp-manager": {
       "command": "npx",
-      "args": ["wtf-mcp-manager", "serve"]
+      "args": ["-y", "wtf-mcp-manager", "serve"]
     }
   }
 }
@@ -342,15 +342,15 @@ your-project/
 ### Command Line Interface
 ```bash
 # CLI commands
-npx wtf-mcp-manager init                # Initialize project
-npx wtf-mcp-manager list                # Show all MCPs
-npx wtf-mcp-manager enable supabase     # Enable specific MCP
-npx wtf-mcp-manager detect              # Auto-detect MCPs
-npx wtf-mcp-manager ingest              # Ingest metadata into your vector store
-npx wtf-mcp-manager doctor              # Diagnose issues
+npx -y wtf-mcp-manager init                # Initialize project
+npx -y wtf-mcp-manager list                # Show all MCPs
+npx -y wtf-mcp-manager enable supabase     # Enable specific MCP
+npx -y wtf-mcp-manager detect              # Auto-detect MCPs
+npx -y wtf-mcp-manager ingest              # Ingest metadata into your vector store
+npx -y wtf-mcp-manager doctor              # Diagnose issues
 
 # Interactive mode
-npx wtf-mcp-manager
+npx -y wtf-mcp-manager
 ```
 
 ### Vector Store Ingestion & Embeddings
@@ -359,10 +359,10 @@ Use the `ingest` command to collect all MCP metadata from the built-in registry,
 
 ```bash
 # Dry run – view a preview without writing
-npx wtf-mcp-manager ingest --dry-run
+npx -y wtf-mcp-manager ingest --dry-run
 
 # Full ingestion (requires environment variables below)
-npx wtf-mcp-manager ingest
+npx -y wtf-mcp-manager ingest
 ```
 
 Set the required credentials in `.claude/.env` (loaded automatically when the CLI runs):
@@ -382,7 +382,7 @@ Set the required credentials in `.claude/.env` (loaded automatically when the CL
 ### Integration with Claude
 ```bash
 # Start Meta-MCP server
-npx wtf-mcp-manager serve
+npx -y wtf-mcp-manager serve
 
 # Add to Claude Desktop config
 # Then control MCPs directly in Claude!
@@ -468,7 +468,7 @@ The MCP server will log per-query latency and hit counts, which can be piped to 
 
 ### "WTF is wrong?" Mode
 ```bash
-npx wtf-mcp-manager doctor
+npx -y wtf-mcp-manager doctor
 ```
 
 Common issues:
@@ -509,7 +509,7 @@ services:
     volumes:
       - ./:/app
       - ./.claude:/app/.claude
-    command: ["npx", "wtf-mcp-manager", "serve"]
+    command: ["npx", "-y", "wtf-mcp-manager", "serve"]
     environment:
       # Claude / Anthropic credentials for conversational control
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
