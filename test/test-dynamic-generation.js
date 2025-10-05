@@ -9,6 +9,9 @@ import { APIDiscoveryService } from '../lib/discovery/api-discovery.js';
 import chalk from 'chalk';
 import http from 'node:http';
 import assert from 'node:assert';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 
 async function testDynamicGeneration() {
   console.log(chalk.cyan('\n🧪 Testing Dynamic MCP Generation System\n'));
@@ -107,6 +110,24 @@ async function testDynamicGeneration() {
     }
   } catch (error) {
     console.log(chalk.red('❌ Template system failed:'), error.message);
+  }
+
+  // Test 5b: Template loading from alternate working directory
+  console.log(chalk.yellow('\n5b. Testing template loading from alternate working directory...'));
+  const originalCwd = process.cwd();
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mcp-generator-test-'));
+  try {
+    process.chdir(tempDir);
+    const altGenerator = new DynamicMCPGenerator();
+    await altGenerator.init();
+    const restTemplate = altGenerator.templates.get('rest-api')?.template ?? '';
+    assert.ok(restTemplate.includes('Type: REST API'), 'Expected real REST template to load');
+    console.log(chalk.green('✅ Templates loaded correctly from module-relative directory'));
+  } catch (error) {
+    console.log(chalk.red('❌ Template loading from alternate directory failed:'), error.message);
+  } finally {
+    process.chdir(originalCwd);
+    await fs.rm(tempDir, { recursive: true, force: true });
   }
 
   // Test 6: API specification detection

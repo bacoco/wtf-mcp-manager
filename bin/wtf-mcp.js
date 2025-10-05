@@ -24,6 +24,23 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const packageJson = JSON.parse(await fs.readFile(join(__dirname, '..', 'package.json'), 'utf8'));
 
+// Load project environment variables from .claude/.env (fallback to .env)
+const envPaths = [
+  join(process.cwd(), '.claude', '.env'),
+  join(process.cwd(), '.env')
+];
+
+for (const envPath of envPaths) {
+  if (existsSync(envPath)) {
+    try {
+      dotenv.config({ path: envPath, override: false });
+    } catch (error) {
+      console.warn(chalk.yellow(`⚠️  Failed to load env file at ${envPath}: ${error.message || error}`));
+    }
+    break;
+  }
+}
+
 const program = new Command();
 const manager = new MCPManager();
 const routerClient = new RouterClient();
@@ -516,45 +533,6 @@ program
           console.log(chalk.gray(`    Fix: ${issue.fix}`));
         }
       });
-    }
-  });
-
-program
-  .command('ingest')
-  .description('Aggregate MCP metadata and push it into the configured vector store')
-  .option('--dry-run', 'Collect metadata and show a preview without writing to the vector store', false)
-  .action(async (options) => {
-    showBanner();
-    const spinner = ora('Collecting MCP metadata...').start();
-    let ingestSpinner;
-
-    try {
-      const records = await collectMCPMetadata();
-      spinner.succeed(chalk.green(`Collected ${records.length} MCP metadata records.`));
-
-      if (options.dryRun) {
-        console.log(chalk.cyan('\n🧪 Dry run preview (first 3 records):\n'));
-        records.slice(0, 3).forEach(record => {
-          console.log(chalk.yellow(`• ${record.name}`));
-          console.log(chalk.gray(`  Source: ${record.source}`));
-          if (record.description) {
-            console.log(chalk.gray(`  Description: ${record.description}`));
-          }
-          console.log('');
-        });
-        return;
-      }
-
-      ingestSpinner = ora('Writing embeddings to the vector store...').start();
-      const result = await ingestToVectorStore();
-      ingestSpinner.succeed(chalk.green(`Ingested ${result.count} records into ${result.provider} (${result.collection}).`));
-    } catch (error) {
-      if (ingestSpinner) {
-        ingestSpinner.fail(chalk.red(`Failed to write to vector store: ${error.message}`));
-      } else {
-        spinner.fail(chalk.red(`Failed to ingest metadata: ${error.message}`));
-      }
-      process.exit(1);
     }
   });
 
