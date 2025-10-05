@@ -6,6 +6,7 @@
  * Type: GraphQL API MCP
  */
 
+{{IMPORTS}}
 import { GraphQLClient } from 'graphql-request';
 
 class {{CLASS_NAME}}MCPServer {
