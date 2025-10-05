@@ -3,7 +3,7 @@
 [![npm version](https://badge.fury.io/js/wtf-mcp-manager.svg)](https://badge.fury.io/js/wtf-mcp-manager)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **Status: v1.1.0 (experimental dynamic generation)**  
+> **Status: v1.1.1 (experimental dynamic generation)**
 > The current release ships a heuristic discovery pipeline and a template-based MCP generator. Automated Gorilla discovery, workflow orchestration, and end-to-end testing are still on the roadmap.
 
 ## 🤯 What Dynamic Generation Means Today
